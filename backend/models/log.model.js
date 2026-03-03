@@ -1,21 +1,27 @@
 const mongoose = require("mongoose");
 
 const logSchema = new mongoose.Schema(
-    {
-        caseId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Case",
-        },
-        action: {
-            type: String,
-            required: true,
-        },
-        performedBy: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-        },
+  {
+    caseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Case",
+      required: true,
     },
-    { timestamps: true }
+    action: {
+      type: String,
+      required: true,
+    },
+    performedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    description: {
+      type: String,
+    },
+  },
+  {
+    timestamps: true, // ✅ Proper timestamp handling
+  }
 );
 
 module.exports = mongoose.model("Log", logSchema);
