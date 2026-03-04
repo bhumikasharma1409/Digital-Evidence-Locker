@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const cases = [
   {
@@ -40,6 +41,7 @@ const statusStyles = {
 
 export default function CitizenDashboard() {
   const [activeTab, setActiveTab] = useState("Dashboard");
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-[#0f172a] via-[#0b1220] to-[#0a0f1c] text-white">
@@ -118,9 +120,12 @@ export default function CitizenDashboard() {
         <div className="rounded-2xl backdrop-blur-xl bg-white/5 border border-white/10 p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold">Recent Cases</h2>
-            <button className="text-sm text-blue-400 hover:text-blue-300 transition">
-              View All
-            </button>
+            <button
+  onClick={() => navigate("/my-cases")}
+  className="text-sm text-blue-400 hover:text-blue-300 transition"
+>
+  View All
+</button>
           </div>
 
           <div className="space-y-4">
