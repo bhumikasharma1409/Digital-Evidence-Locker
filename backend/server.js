@@ -5,13 +5,21 @@ const cors = require("cors");
 const connectDB = require("./config/db");
 
 const logRoutes = require("./routes/logRoutes");
-const caseRoutes = require("./routes/caseRoutes"); // 👈 ADD THIS
+const caseRoutes = require("./routes/caseRoutes");
+const dns = require("dns");
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 connectDB();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:5173",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type"]
+}));
+
+
 app.use(express.json());
 
 app.get("/", (req, res) => {
@@ -19,7 +27,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/logs", logRoutes);
-app.use("/api/cases", caseRoutes); // 👈 ADD THIS
+app.use("/api/cases", caseRoutes);
 
 const PORT = process.env.PORT || 5000;
 
