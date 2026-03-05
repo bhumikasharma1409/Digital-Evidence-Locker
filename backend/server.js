@@ -17,8 +17,6 @@ app.use(cors({
   allowedHeaders: ["Content-Type"]
 }));
 
-// This line fixes the preflight error
-app.options("*", cors());
 
 app.use(express.json());
 
