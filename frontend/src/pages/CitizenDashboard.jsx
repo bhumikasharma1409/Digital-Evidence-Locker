@@ -44,8 +44,12 @@ export default function CitizenDashboard() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-[#0f172a] via-[#0b1220] to-[#0a0f1c] text-white">
-
+    <div className="relative min-h-screen flex bg-gradient-to-br from-[#0f172a] via-[#0b1220] to-[#0a0f1c] text-white">
+      {/* Animated Background Gradient Overlay */}
+      <div className="fixed inset-0 opacity-30 pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600 rounded-full filter blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-600 rounded-full filter blur-3xl animate-pulse delay-1000"></div>
+      </div>
       {/* Sidebar */}
       <aside className="hidden md:flex flex-col w-64 p-6 backdrop-blur-xl bg-white/5 border-r border-white/10">
         <h2 className="text-xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-10">
@@ -121,11 +125,11 @@ export default function CitizenDashboard() {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold">Recent Cases</h2>
             <button
-  onClick={() => navigate("/my-cases")}
-  className="text-sm text-blue-400 hover:text-blue-300 transition"
->
-  View All
-</button>
+              onClick={() => navigate("/my-cases")}
+              className="text-sm text-blue-400 hover:text-blue-300 transition"
+            >
+              View All
+            </button>
           </div>
 
           <div className="space-y-4">
