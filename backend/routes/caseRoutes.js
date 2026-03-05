@@ -2,12 +2,31 @@ const express = require("express");
 const router = express.Router();
 const Case = require("../models/case.model");
 
+
+// GET /api/cases -> Get all cases
+router.get("/", async (req, res) => {
+  try {
+    const cases = await Case.find();
+
+    res.status(200).json({
+      success: true,
+      data: cases,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+
 // POST /api/cases -> Create new case
 router.post("/", async (req, res) => {
   try {
     const { title, description } = req.body;
 
-    // Check required fields
     if (!title || !description) {
       return res.status(400).json({
         success: false,
