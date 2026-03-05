@@ -2,38 +2,37 @@ const express = require("express");
 const router = express.Router();
 const Case = require("../models/case.model");
 
-// Create a new case
+// POST /api/cases -> Create new case
 router.post("/", async (req, res) => {
   try {
-    const newCase = await Case.create({
-      title: req.body.title,
-      description: req.body.description,
+    const { title, description } = req.body;
+
+    // Check required fields
+    if (!title || !description) {
+      return res.status(400).json({
+        success: false,
+        message: "Title and description are required",
+      });
+    }
+
+    const newCase = new Case({
+      title,
+      description,
     });
+
+    const savedCase = await newCase.save();
 
     res.status(201).json({
       success: true,
-      data: newCase,
+      message: "Case created successfully",
+      data: savedCase,
     });
+
   } catch (error) {
     res.status(500).json({
       success: false,
       message: error.message,
     });
-  }
-});
-
-
-// Temporary route to create a case from browser
-router.get("/create-test", async (req, res) => {
-  try {
-    const newCase = await Case.create({
-      title: "Test Case",
-      description: "Created from browser",
-    });
-
-    res.json(newCase);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
   }
 });
 
