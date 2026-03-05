@@ -5,7 +5,7 @@ const cors = require("cors");
 const connectDB = require("./config/db");
 
 const logRoutes = require("./routes/logRoutes");
-const caseRoutes = require("./routes/caseRoutes"); // 👈 ADD THIS
+const caseRoutes = require("./routes/caseRoutes"); 
 
 connectDB();
 
@@ -19,17 +19,10 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/logs", logRoutes);
-app.use("/api/cases", caseRoutes); // 👈 ADD THIS
+app.use("/api/cases", caseRoutes); 
 
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-});
-
-
-
-
-app.get("/test", (req, res) => {
-  res.json({ message: "Test route works" });
 });
