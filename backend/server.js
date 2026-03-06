@@ -20,14 +20,14 @@ app.use(cors({
 
 app.use(express.json());
 
-// Serve uploaded files statically as per requirements
+
 app.use("/uploads", express.static("uploads"));
 
 app.get("/", (req, res) => {
   res.json({ message: "Backend is working" });
 });
 
-// Routes
+
 app.use("/api/cases", caseRoutes);
 
 const PORT = process.env.PORT || 5001;
