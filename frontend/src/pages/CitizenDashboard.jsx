@@ -114,40 +114,15 @@ export default function CitizenDashboard() {
         </div>
 
         {/* Create Button */}
-        {/* Create Button */}
-<div className="mb-10">
+   <div className="mb-10">
   <button
-    onClick={async () => {
-      try {
-        const response = await fetch("http://localhost:5000/api/cases", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            title: "New Case From Dashboard",
-            description: "Case created using frontend button",
-          }),
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-          alert("Case created successfully!");
-        } else {
-          alert("Error creating case");
-        }
-
-      } catch (error) {
-        console.error(error);
-        alert("Server error");
-      }
-    }}
+    onClick={() => navigate("/new-case")}
     className="px-7 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 font-semibold shadow-lg shadow-blue-500/20 hover:scale-105 hover:shadow-blue-500/40 transition-all duration-300"
   >
     + Create New Case
   </button>
 </div>
+
 
         {/* Recent Cases */}
         <div className="rounded-2xl backdrop-blur-xl bg-white/5 border border-white/10 p-6">
