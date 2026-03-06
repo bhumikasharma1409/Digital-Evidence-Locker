@@ -11,7 +11,10 @@ function App() {
         <Route path="/citizen-dashboard" element={<CitizenDashboard />} />
         <Route path="/my-cases" element={<MyCases />} />
 
+
         <Route path="/" element={<LandingPage />} />
+
+
 
         <Route path="/new-case" element={<NewEvidenceCase />} />
         <Route path="/landing-page" element={<LandingPage />} />
