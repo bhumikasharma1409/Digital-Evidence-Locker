@@ -7,9 +7,9 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<CitizenDashboard />} />
+        <Route path="/citizen-dashboard" element={<CitizenDashboard />} />
         <Route path="/my-cases" element={<MyCases />} />
-        <Route path="/landing-page" element={<LandingPage />} />
+        <Route path="/" element={<LandingPage />} />
       </Routes>
     </Router>
   );
