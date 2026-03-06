@@ -14,13 +14,18 @@ connectDB();
 
 const app = express();
 
-app.use(cors());   // ✅ only this line
+
+app.use(cors());
+
+app.use(cors());
+
 app.use(express.json());
 
 app.get("/", (req, res) => {
   res.json({ message: "Backend is working" });
 });
 
+// Routes
 app.use("/api/logs", logRoutes);
 app.use("/api/cases", caseRoutes);
 
