@@ -6,6 +6,8 @@ const connectDB = require("./config/db");
 
 const logRoutes = require("./routes/logRoutes");
 const caseRoutes = require("./routes/caseRoutes");
+const dns = require("dns");
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 connectDB();
 
