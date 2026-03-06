@@ -12,13 +12,21 @@ const caseSchema = new mongoose.Schema({
   description: {
     type: String,
     required: true
-  }
-  ,
+  },
   status: {
     type: String,
-    enum: ["PENDING", "ASSIGNED", "VERIFIED", "CLOSED"],
-    default: "PENDING"
+    default: "Pending" // Using Pending as per requirements instead of PENDING enum to match frontend and instructions
+  },
+  evidenceFile: {
+    type: String, // Store uploaded filename/path
+  },
+  hash: {
+    type: String, // Placeholder hash
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
   }
-}, { timestamps: true });
+});
 
 module.exports = mongoose.model("Case", caseSchema);

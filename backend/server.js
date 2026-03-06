@@ -4,7 +4,6 @@ const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
 
-const logRoutes = require("./routes/logRoutes");
 const caseRoutes = require("./routes/caseRoutes");
 
 const dns = require("dns");
@@ -14,27 +13,24 @@ connectDB();
 
 const app = express();
 
-
-
-app.use(cors());
-
-app.use(cors());
-
-
-// Middleware
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:5173", // Allow frontend URL
+  credentials: true
+}));
 
 app.use(express.json());
+
+// Serve uploaded files statically as per requirements
+app.use("/uploads", express.static("uploads"));
 
 app.get("/", (req, res) => {
   res.json({ message: "Backend is working" });
 });
 
 // Routes
-app.use("/api/logs", logRoutes);
 app.use("/api/cases", caseRoutes);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

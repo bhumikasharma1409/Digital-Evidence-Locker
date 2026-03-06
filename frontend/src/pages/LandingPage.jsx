@@ -1,3 +1,7 @@
+/**
+ * LandingPage.jsx: The public-facing portal and entry point for the Digital Evidence Locker.
+ * Provides an overview of features and a gateway for users to sign in or get access.
+ */
 import { useState, useEffect, useRef } from "react";
 
 // --- Matrix Rain Canvas ---
