@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { response } from "express";
 
 const statusColors = {
   PENDING: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
@@ -31,21 +32,24 @@ export default function MyCases() {
 
   // FETCH CASES FROM BACKEND
   useEffect(() => {
-    const fetchCases = async () => {
-      try {
-        const res = await fetch("http://localhost:5000/api/cases");
-        const data = await res.json();
+  const fetchCases = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/cases");
+      
+      // FIX 1: Change 'response.json()' to 'res.json()'
+      const data = await res.json(); 
 
-        if (data.success) {
-          setCases(data.data);
-        }
-      } catch (error) {
-        console.error("Error fetching cases:", error);
+      // FIX 2: Change 'result' to 'data' (to match the variable above)
+      if (data.success) {
+        setCases(data.data);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching cases:", error);
+    }
+  };
 
-    fetchCases();
-  }, []);
+  fetchCases();
+}, []);
 
   const filteredCases = cases.filter((c) => {
     const matchesSearch =
