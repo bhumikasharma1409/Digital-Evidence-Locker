@@ -3,6 +3,7 @@
  * Provides an overview of features and a gateway for users to sign in or get access.
  */
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 // --- Matrix Rain Canvas ---
 function MatrixRain() {
@@ -246,6 +247,7 @@ function TerminalLog({ lines }) {
 }
 
 export default function LandingPage() {
+    const navigate = useNavigate();
     const [menuOpen, setMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
 
@@ -313,10 +315,10 @@ export default function LandingPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <button className="hidden md:block text-sm font-bold text-slate-400 hover:text-teal-400 transition-colors px-4 py-2">
+                        <button onClick={() => navigate('/login')} className="hidden md:block text-sm font-bold text-slate-400 hover:text-teal-400 transition-colors px-4 py-2">
                             Sign In
                         </button>
-                        <button className="text-sm font-bold px-5 py-2.5 rounded-lg transition-all duration-200 hover:scale-105"
+                        <button onClick={() => navigate('/register')} className="text-sm font-bold px-5 py-2.5 rounded-lg transition-all duration-200 hover:scale-105"
                             style={{ background: "linear-gradient(135deg,#14d2a0,#3b82f6)", color: "#0a0f1a" }}>
                             Get Access
                         </button>
@@ -355,14 +357,11 @@ export default function LandingPage() {
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-3">
-                            <button className="h-13 px-8 py-3.5 rounded-xl font-black text-sm tracking-wider transition-all hover:scale-105 hover:brightness-110 glow-btn"
+                            <button onClick={() => navigate('/register')} className="h-13 px-8 py-3.5 rounded-xl font-black text-sm tracking-wider transition-all hover:scale-105 hover:brightness-110 glow-btn"
                                 style={{ background: "linear-gradient(135deg,#14d2a0,#0ea5e9)", color: "#0a0f1a" }}>
                                 ⚡ REGISTER AGENCY
                             </button>
-                            <button className="h-13 px-8 py-3.5 rounded-xl font-black text-sm tracking-wider text-teal-400 transition-all hover:bg-teal-400/10"
-                                style={{ border: "1px solid rgba(20,210,160,0.4)" }}>
-                                → REQUEST DEMO
-                            </button>
+
                         </div>
 
                         <div className="mt-8 flex items-center gap-6 text-xs text-slate-500">
@@ -530,7 +529,7 @@ export default function LandingPage() {
                         Join 480+ government agencies securing mission-critical evidence. Deployment in under 48 hours.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                        <button className="px-10 py-4 rounded-xl font-black text-sm tracking-wider glow-btn transition-all hover:scale-105"
+                        <button onClick={() => navigate('/register')} className="px-10 py-4 rounded-xl font-black text-sm tracking-wider glow-btn transition-all hover:scale-105"
                             style={{ background: "linear-gradient(135deg,#14d2a0,#0ea5e9)", color: "#0a0f1a" }}>
                             ⚡ REGISTER YOUR AGENCY
                         </button>

@@ -59,6 +59,14 @@ function HexBadge({ label, color = "teal" }) {
 export default function CreateCase() {
     const navigate = useNavigate();
 
+    // Protect route on mount
+    useEffect(() => {
+        const token = localStorage.getItem("token");
+        if (!token) {
+            navigate("/login");
+        }
+    }, [navigate]);
+
     const [formData, setFormData] = useState({
         title: "",
         category: "Phishing",
@@ -93,6 +101,12 @@ export default function CreateCase() {
         }
 
         try {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                navigate("/login");
+                return;
+            }
+
             const data = new FormData();
             data.append("title", formData.title);
             data.append("category", formData.category);
@@ -101,7 +115,12 @@ export default function CreateCase() {
                 data.append("evidenceFile", evidenceFile);
             }
 
-            await axios.post("http://localhost:5001/api/cases", data);
+            await axios.post("http://localhost:5001/api/cases", data, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    // FormData boundary will be set automatically by axios
+                }
+            });
 
             setSuccess("SUCCESS: Case securely anchored to system.");
             setTimeout(() => {
@@ -109,6 +128,15 @@ export default function CreateCase() {
             }, 1500);
         } catch (err) {
             console.error("Error submitting case:", err);
+
+            // Handle specific unauthorized cases
+            if (err.response && err.response.status === 401) {
+                localStorage.removeItem("token");
+                setError("Session expired, please login again");
+                setTimeout(() => navigate("/login"), 2000);
+                return;
+            }
+
             setError(err.response?.data?.message || err.message || "UPLOAD_FAILED: Integrity check error. Please try again.");
         } finally {
             setLoading(false);

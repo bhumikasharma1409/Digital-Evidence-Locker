@@ -5,6 +5,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import ConfirmationModal from "../components/ConfirmationModal";
+import Toast from "../components/Toast";
 
 // --- Matrix Rain Canvas ---
 function MatrixRain() {
@@ -145,6 +147,10 @@ export default function CaseDetails() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    // Custom UI states
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [toastMessage, setToastMessage] = useState(null);
+
     useEffect(() => {
         const fetchCaseData = async () => {
             if (!id || id === ":id") {
@@ -152,12 +158,31 @@ export default function CaseDetails() {
                 setLoading(false);
                 return;
             }
+
+            const token = localStorage.getItem("token");
+            if (!token) {
+                navigate("/login");
+                return;
+            }
+
             try {
                 setLoading(true);
-                const response = await axios.get(`http://localhost:5001/api/cases/${id}`);
+                const response = await axios.get(`http://localhost:5001/api/cases/${id}`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                });
                 setCaseData(response.data.data);
             } catch (err) {
                 console.error("Error fetching case details:", err.response || err);
+
+                if (err.response && err.response.status === 401) {
+                    localStorage.removeItem("token");
+                    setError("Session expired, please login again");
+                    setTimeout(() => navigate("/login"), 2000);
+                    return;
+                }
+
                 setError(err.response?.data?.message || err.message || "Unable to load case details. Connection securely terminated.");
             } finally {
                 setLoading(false);
@@ -165,7 +190,7 @@ export default function CaseDetails() {
         };
 
         fetchCaseData();
-    }, [id]);
+    }, [id, navigate]);
 
     if (loading) {
         return (
@@ -208,6 +233,47 @@ export default function CaseDetails() {
         createdAt
     } = caseData;
 
+    const handleDeleteClick = () => {
+        setShowDeleteModal(true);
+    };
+
+    const confirmDeleteCase = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                navigate("/login");
+                return;
+            }
+
+            const res = await axios.delete(`http://localhost:5001/api/cases/${id}`, {
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            });
+
+            if (res.data.success) {
+                setShowDeleteModal(false);
+                setToastMessage({ text: "Case deleted successfully", type: "success" });
+                setTimeout(() => {
+                    navigate("/my-cases");
+                }, 2000);
+            }
+        } catch (err) {
+            console.error("Error deleting case:", err);
+            setShowDeleteModal(false);
+            if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+                if (err.response.status === 401) {
+                    localStorage.removeItem("token");
+                    navigate("/login");
+                } else {
+                    setToastMessage({ text: err.response.data.message || "Not authorized to delete this case.", type: "error" });
+                }
+                return;
+            }
+            setToastMessage({ text: "Failed to delete the case.", type: "error" });
+        }
+    };
+
     return (
         <div className="min-h-screen w-full bg-[#0a0f1a] text-slate-100 overflow-x-hidden relative" style={{ fontFamily: "system-ui, sans-serif" }}>
             <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
@@ -227,10 +293,16 @@ export default function CaseDetails() {
 
             <div className="relative z-10 max-w-5xl mx-auto px-6 py-12">
 
-                {/* Back Button */}
-                <button onClick={() => navigate('/my-cases')} className="mb-8 flex items-center gap-2 text-slate-400 hover:text-teal-400 transition-colors font-mono text-xs uppercase tracking-widest" style={{ animation: "fadeSlideUp 0.6s ease both" }}>
-                    <span>←</span> BACK TO DIRECTORY
-                </button>
+                {/* Action Buttons */}
+                <div className="flex justify-between items-center mb-8" style={{ animation: "fadeSlideUp 0.6s ease both" }}>
+                    <button onClick={() => navigate('/my-cases')} className="flex items-center gap-2 text-slate-400 hover:text-teal-400 transition-colors font-mono text-xs uppercase tracking-widest">
+                        <span>←</span> BACK TO DIRECTORY
+                    </button>
+
+                    <button onClick={handleDeleteClick} className="flex items-center gap-2 px-4 py-2 border border-red-500/30 text-red-500 bg-red-500/10 hover:bg-red-500/20 rounded-lg text-xs font-bold font-mono transition-colors">
+                        <span>🗑️ DELETE RECORD</span>
+                    </button>
+                </div>
 
                 {/* HEADER SECTION */}
                 <div className="mb-12" style={{ animation: "fadeSlideUp 0.6s ease 0.1s both" }}>
@@ -393,6 +465,25 @@ export default function CaseDetails() {
                 </div>
 
             </div>
+
+            {/* Custom UI Overlays */}
+            <ConfirmationModal
+                isOpen={showDeleteModal}
+                title="Confirm Deletion"
+                message="Are you sure you want to delete this case? This action is permanent and destroys the cryptographic evidence seal."
+                confirmText="DELETE PERMANENTLY"
+                cancelText="ABORT"
+                onConfirm={confirmDeleteCase}
+                onCancel={() => setShowDeleteModal(false)}
+            />
+
+            {toastMessage && (
+                <Toast
+                    message={toastMessage.text}
+                    type={toastMessage.type}
+                    onClose={() => setToastMessage(null)}
+                />
+            )}
         </div>
     );
 }

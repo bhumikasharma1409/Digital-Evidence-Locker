@@ -5,6 +5,7 @@ const cors = require("cors");
 const connectDB = require("./config/db");
 
 const caseRoutes = require("./routes/caseRoutes");
+const authRoutes = require("./routes/authRoutes"); // Added auth routes
 
 const dns = require("dns");
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
@@ -29,6 +30,7 @@ app.get("/", (req, res) => {
 
 
 app.use("/api/cases", caseRoutes);
+app.use("/api/auth", authRoutes); // Register auth routing
 
 const PORT = process.env.PORT || 5001;
 

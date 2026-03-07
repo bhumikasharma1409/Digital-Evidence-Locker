@@ -24,7 +24,8 @@ exports.createCase = async (req, res) => {
       category,
       description,
       hash: fakeHash,
-      evidenceFile
+      evidenceFile,
+      user: req.user._id // Tagging the creator of the evidence
     });
 
     const savedCase = await newCase.save();
@@ -48,7 +49,8 @@ exports.createCase = async (req, res) => {
 
 exports.getCases = async (req, res) => {
   try {
-    const cases = await Case.find().sort({ createdAt: -1 });
+    // Only return cases belonging to the logged-in user
+    const cases = await Case.find({ user: req.user._id }).sort({ createdAt: -1 });
     res.status(200).json({
       success: true,
       data: cases
@@ -109,6 +111,28 @@ exports.uploadEvidence = async (req, res) => {
     });
   } catch (error) {
     console.error("Error uploading evidence:", error);
+    res.status(500).json({ success: false, message: "Server error: " + error.message });
+  }
+};
+
+exports.deleteCase = async (req, res) => {
+  try {
+    const caseItem = await Case.findById(req.params.id);
+
+    if (!caseItem) {
+      return res.status(404).json({ success: false, message: "Case not found" });
+    }
+
+    // Verify ownership: req.user._id is populated by the protect middleware
+    if (caseItem.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: "Not authorized to delete this case" });
+    }
+
+    await caseItem.deleteOne();
+
+    res.status(200).json({ success: true, message: "Case deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting case:", error);
     res.status(500).json({ success: false, message: "Server error: " + error.message });
   }
 };

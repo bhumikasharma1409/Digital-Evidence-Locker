@@ -89,14 +89,31 @@ export default function Dashboard() {
     useEffect(() => {
         const fetchCases = async () => {
             try {
+                const token = localStorage.getItem("token");
+                if (!token) {
+                    navigate("/login");
+                    return;
+                }
+
                 setLoading(true);
-                const response = await axios.get(API_URL);
+                const response = await axios.get(API_URL, {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                });
+
                 if (response.data.success) {
                     setCases(response.data.data);
                 }
             } catch (err) {
                 console.error("Error fetching dashboard data:", err);
-                setError("Unable to load dashboard data");
+                if (err.response && err.response.status === 401) {
+                    // Unauthorized, logic dictates clearing local storage and force login link
+                    localStorage.removeItem("token");
+                    navigate("/login");
+                } else {
+                    setError("Unable to load dashboard data");
+                }
             } finally {
                 setLoading(false);
             }
@@ -247,7 +264,7 @@ export default function Dashboard() {
                         { label: "Home", icon: "🏠", path: "/dashboard" },
                         { label: "My Cases", icon: "📁", path: "/my-cases" },
                         { label: "Alerts", icon: "🔔", path: "/dashboard" },
-                        { label: "Settings", icon: "⚙️", path: "/dashboard" },
+                        { label: "Profile", icon: "🕵️", path: "/profile" },
                     ].map(link => (
                         <button
                             key={link.label}

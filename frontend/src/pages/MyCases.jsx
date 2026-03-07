@@ -4,6 +4,8 @@
  */
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
+import ConfirmationModal from "../components/ConfirmationModal";
+import Toast from "../components/Toast";
 
 // --- Matrix Rain Canvas ---
 function MatrixRain() {
@@ -72,12 +74,31 @@ export default function MyCases() {
   const [hoveredCase, setHoveredCase] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
+  const [toastMessage, setToastMessage] = useState(null);
 
   useEffect(() => {
     const fetchCases = async () => {
       try {
-        const res = await fetch("http://localhost:5001/api/cases");
+        const token = localStorage.getItem("token");
+        if (!token) {
+          navigate("/login");
+          return;
+        }
+
+        const res = await fetch("http://localhost:5001/api/cases", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
         const data = await res.json();
+
+        if (res.status === 401 || data.message === "Not authorized, no token" || data.message === "Not authorized. Token failed") {
+          localStorage.removeItem("token");
+          navigate("/login");
+          return;
+        }
+
         if (data.success) {
           setCases(data.data);
         }
@@ -86,7 +107,7 @@ export default function MyCases() {
       }
     };
     fetchCases();
-  }, []);
+  }, [navigate]);
 
   const filteredCases = cases.filter((c) => {
     const matchesSearch =
@@ -95,6 +116,52 @@ export default function MyCases() {
     const matchesFilter = filterStatus === "ALL" || c.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
+
+  const handleDeleteClick = (e, id) => {
+    e.stopPropagation(); // Prevents case link navigation when hitting the delete button
+    setDeleteTargetId(id);
+  };
+
+  const confirmDeleteCase = async () => {
+    if (!deleteTargetId) return;
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+
+      const res = await fetch(`http://localhost:5001/api/cases/${deleteTargetId}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+
+      if (res.status === 401 || res.status === 403) {
+        if (res.status === 401) {
+          localStorage.removeItem("token");
+          navigate("/login");
+        } else {
+          setToastMessage({ text: data.message || "Not authorized to delete this case.", type: "error" });
+        }
+        setDeleteTargetId(null);
+        return;
+      }
+
+      if (res.ok && data.success) {
+        setCases(cases.filter(c => c._id !== deleteTargetId));
+        setToastMessage({ text: "Case deleted successfully", type: "success" });
+      } else {
+        setToastMessage({ text: data.message || "Failed to delete the case.", type: "error" });
+      }
+    } catch (error) {
+      console.error("Error deleting case:", error);
+      setToastMessage({ text: "An error occurred while deleting the case.", type: "error" });
+    }
+    setDeleteTargetId(null);
+  };
 
   const stats = {
     total: cases.length,
@@ -247,9 +314,17 @@ export default function MyCases() {
                   </div>
                 </div>
 
-                <div className="hidden md:flex opacity-0 group-hover:opacity-100 transition-opacity items-center gap-2 text-teal-400 text-sm font-bold tracking-wider" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
-                  <span>ACCESS RECORD</span>
-                  <span className="group-hover:translate-x-1 transition-transform">→</span>
+                <div className="hidden md:flex flex-col opacity-0 group-hover:opacity-100 transition-opacity items-end gap-3 text-teal-400 text-sm font-bold tracking-wider" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                  <div className="flex items-center gap-2">
+                    <span>ACCESS RECORD</span>
+                    <span className="group-hover:translate-x-1 transition-transform">→</span>
+                  </div>
+                  <button
+                    onClick={(e) => handleDeleteClick(e, c._id)}
+                    className="flex items-center gap-1 px-3 py-1 bg-red-500/10 text-red-500 border border-red-500/30 hover:bg-red-500/20 rounded text-xs transition-colors"
+                  >
+                    <span>🗑️ DELETE</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -265,6 +340,25 @@ export default function MyCases() {
           </div>
         )}
       </div>
+
+      {/* Custom UI Overlays */}
+      <ConfirmationModal
+        isOpen={!!deleteTargetId}
+        title="Confirm Deletion"
+        message="Are you sure you want to delete this case? This action cannot be undone."
+        confirmText="DELETE RECORD"
+        cancelText="CANCEL"
+        onConfirm={confirmDeleteCase}
+        onCancel={() => setDeleteTargetId(null)}
+      />
+
+      {toastMessage && (
+        <Toast
+          message={toastMessage.text}
+          type={toastMessage.type}
+          onClose={() => setToastMessage(null)}
+        />
+      )}
     </div>
   );
 }
