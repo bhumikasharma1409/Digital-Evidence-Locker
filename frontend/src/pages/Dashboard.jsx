@@ -81,13 +81,14 @@ function HexBadge({ label, color = "teal" }) {
 export default function Dashboard() {
     const navigate = useNavigate();
     const [cases, setCases] = useState([]);
+    const [userName, setUserName] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     const API_URL = "http://localhost:5001/api/cases";
 
     useEffect(() => {
-        const fetchCases = async () => {
+        const fetchData = async () => {
             try {
                 const token = localStorage.getItem("token");
                 if (!token) {
@@ -96,6 +97,21 @@ export default function Dashboard() {
                 }
 
                 setLoading(true);
+
+                // Fetch User Profile
+                try {
+                    const profileRes = await axios.get("http://localhost:5001/api/auth/profile", {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    if (profileRes.data && profileRes.data.fullName) {
+                        setUserName(profileRes.data.fullName);
+                    }
+                } catch (profErr) {
+                    console.error("Failed to fetch user profile name:", profErr);
+                    // Silently fail for just the user name if desired, or handle it as needed.
+                }
+
+                // Fetch Cases
                 const response = await axios.get(API_URL, {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -118,7 +134,7 @@ export default function Dashboard() {
                 setLoading(false);
             }
         };
-        fetchCases();
+        fetchData();
     }, []);
 
     // Stats Calculation
@@ -183,7 +199,7 @@ export default function Dashboard() {
                         ── DIRECTORY ACCESS ──
                     </div>
                     <h1 className="text-4xl font-black text-white" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
-                        CITIZEN <span className="text-teal-400">DASHBOARD</span>
+                        Welcome, <span className="text-teal-400">{userName || "Agent"}</span>
                     </h1>
                     <p className="text-slate-400 text-sm tracking-wide">Secure Digital Evidence Locker Overview</p>
                 </div>
@@ -256,27 +272,6 @@ export default function Dashboard() {
                 </div>
 
             </div>
-
-            {/* Bottom Navigation */}
-            <nav className="fixed bottom-0 left-0 right-0 z-[100] px-6 py-4">
-                <div className="max-w-2xl mx-auto flex items-center justify-between p-2 rounded-2xl backdrop-blur-2xl border border-teal-500/20 shadow-2xl shadow-black/80" style={{ background: "rgba(10,15,26,0.8)" }}>
-                    {[
-                        { label: "Home", icon: "🏠", path: "/dashboard" },
-                        { label: "My Cases", icon: "📁", path: "/my-cases" },
-                        { label: "Alerts", icon: "🔔", path: "/dashboard" },
-                        { label: "Profile", icon: "🕵️", path: "/profile" },
-                    ].map(link => (
-                        <button
-                            key={link.label}
-                            onClick={() => navigate(link.path)}
-                            className="flex flex-col items-center gap-1 flex-1 py-1 rounded-xl transition-all hover:bg-teal-500/10 group"
-                        >
-                            <span className="text-xl group-hover:scale-110 transition-transform">{link.icon}</span>
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest group-hover:text-teal-400">{link.label}</span>
-                        </button>
-                    ))}
-                </div>
-            </nav>
         </div>
     );
 }
