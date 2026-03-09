@@ -86,7 +86,8 @@ export default function MyCases() {
           return;
         }
 
-        const res = await fetch("http://localhost:5001/api/cases", {
+        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+        const res = await fetch(`${API_BASE_URL}/api/cases`, {
           headers: {
             "Authorization": `Bearer ${token}`
           }
@@ -131,7 +132,8 @@ export default function MyCases() {
         return;
       }
 
-      const res = await fetch(`http://localhost:5001/api/cases/${deleteTargetId}`, {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+      const res = await fetch(`${API_BASE_URL}/api/cases/${deleteTargetId}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${token}`

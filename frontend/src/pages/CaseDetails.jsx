@@ -103,7 +103,8 @@ function GlitchText({ text }) {
 // Evidence File Renderer helper
 const renderEvidenceFile = (filePath) => {
     if (!filePath) return null;
-    const SERVER_URL = "http://localhost:5001/";
+    const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+    const SERVER_URL = `${API_BASE_URL}/`;
     const fullUrl = filePath.startsWith("http") ? filePath : SERVER_URL + filePath.replace(/\\/g, '/');
     const ext = fullUrl.split('.').pop().toLowerCase();
 
@@ -167,7 +168,8 @@ export default function CaseDetails() {
 
             try {
                 setLoading(true);
-                const response = await axios.get(`http://localhost:5001/api/cases/${id}`, {
+                const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+                const response = await axios.get(`${API_BASE_URL}/api/cases/${id}`, {
                     headers: {
                         Authorization: `Bearer ${token}`
                     }
@@ -245,7 +247,8 @@ export default function CaseDetails() {
                 return;
             }
 
-            const res = await axios.delete(`http://localhost:5001/api/cases/${id}`, {
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+            const res = await axios.delete(`${API_BASE_URL}/api/cases/${id}`, {
                 headers: {
                     "Authorization": `Bearer ${token}`
                 }

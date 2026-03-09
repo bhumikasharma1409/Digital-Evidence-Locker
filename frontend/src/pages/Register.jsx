@@ -89,7 +89,8 @@ export default function Register() {
         setServerError("");
         try {
             // Modify URL depending on your actual API endpoint
-            const response = await fetch("http://localhost:5001/api/auth/register", {
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+            const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

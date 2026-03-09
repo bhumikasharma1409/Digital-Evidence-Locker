@@ -51,7 +51,8 @@ export default function Profile() {
                 }
 
                 // Call directly since we just need simple profile mapping without axios
-                const response = await fetch("http://localhost:5001/api/auth/profile", {
+                const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+                const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
                     method: "GET",
                     headers: {
                         "Authorization": `Bearer ${token}`,

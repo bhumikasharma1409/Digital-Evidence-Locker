@@ -85,7 +85,8 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const API_URL = "http://localhost:5001/api/cases";
+    const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+    const API_URL = `${API_BASE_URL}/api/cases`;
 
     useEffect(() => {
         const fetchData = async () => {
@@ -100,7 +101,7 @@ export default function Dashboard() {
 
                 // Fetch User Profile
                 try {
-                    const profileRes = await axios.get("http://localhost:5001/api/auth/profile", {
+                    const profileRes = await axios.get(`${API_BASE_URL}/api/auth/profile`, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                     if (profileRes.data && profileRes.data.fullName) {

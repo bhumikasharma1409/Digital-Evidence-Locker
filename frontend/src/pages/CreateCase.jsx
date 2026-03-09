@@ -115,7 +115,8 @@ export default function CreateCase() {
                 data.append("evidenceFile", evidenceFile);
             }
 
-            await axios.post("http://localhost:5001/api/cases", data, {
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+            await axios.post(`${API_BASE_URL}/api/cases`, data, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     // FormData boundary will be set automatically by axios
