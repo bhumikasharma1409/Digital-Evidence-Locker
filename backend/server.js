@@ -14,10 +14,15 @@ connectDB();
 
 const app = express();
 
-const allowedOrigins = ["http://localhost:5173", process.env.FRONTEND_URL].filter(Boolean);
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://digital-evidence-locker.vercel.app",
+  process.env.FRONTEND_URL
+].filter(Boolean);
 
 app.use(cors({
   origin: allowedOrigins,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true
 }));
 
