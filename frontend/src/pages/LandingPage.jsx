@@ -236,8 +236,8 @@ function TerminalLog({ lines }) {
             </div>
             <div className="p-4 space-y-1 min-h-[160px]">
                 {lines.map((line, i) => visible.includes(i) && (
-                    <div key={i} className="text-xs flex gap-2" style={{ fontFamily: "'Share Tech Mono', monospace", animation: "fadeSlideUp 0.3s ease" }}>
-                        <span className="text-teal-500 select-none">$</span>
+                    <div key={i} className="text-xs flex gap-2 min-h-[1em]" style={{ fontFamily: "'Share Tech Mono', monospace", animation: "fadeSlideUp 0.3s ease" }}>
+                        {line.type === "cmd" && <span className="text-teal-500 select-none">$</span>}
                         <span className={line.type === "success" ? "text-teal-400" : line.type === "warn" ? "text-yellow-400" : "text-slate-300"}>{line.text}</span>
                     </div>
                 ))}
@@ -258,11 +258,14 @@ export default function LandingPage() {
     }, []);
 
     const terminalLines = [
-        { text: "initialize evidence-locker --secure", type: "cmd" },
-        { text: "✓ AES-256 encryption loaded", type: "success" },
-        { text: "✓ Blockchain anchor connected", type: "success" },
-        { text: "✓ Chain-of-custody module active", type: "success" },
-        { text: "⚠ Awaiting agency authentication...", type: "warn" },
+        { text: "start digital-evidence-locker --secure-mode", type: "cmd" },
+        { text: "", type: "msg" },
+        { text: "✓ Evidence vault initialized", type: "success" },
+        { text: "✓ Case management service active", type: "success" },
+        { text: "✓ Evidence upload & verification module ready", type: "success" },
+        { text: "✓ Chain-of-custody audit system enabled", type: "success" },
+        { text: "✓ Integrity monitoring engine initialized", type: "success" },
+        { text: "⚠ Awaiting citizen evidence submissions...", type: "warn" },
     ];
 
     return (
@@ -364,10 +367,11 @@ export default function LandingPage() {
 
                         </div>
 
-                        <div className="mt-8 flex items-center gap-6 text-xs text-slate-500">
-                            {["No credit card required", "99.999% uptime SLA", "24/7 SOC monitoring"].map((t, i) => (
-                                <span key={i} className="flex items-center gap-1.5">
-                                    <span className="text-teal-500">✓</span> {t}
+                        <div className="mt-8 flex flex-wrap items-center gap-8 lg:gap-12 text-[11px] sm:text-xs text-slate-300 w-full">
+                            {["Secure Evidence Upload", "Chain-of-Custody Tracking"].map((t, i) => (
+                                <span key={i} className="flex items-center gap-1.5 sm:gap-2 whitespace-nowrap">
+                                    <span className="flex shrink-0 items-center justify-center w-4 h-4 rounded-full bg-teal-500/10 text-teal-400 text-[10px] font-bold border border-teal-500/30 shadow-[0_0_8px_rgba(20,210,160,0.2)]">✓</span>
+                                    <span className="tracking-wide opacity-90">{t}</span>
                                 </span>
                             ))}
                         </div>
@@ -383,25 +387,25 @@ export default function LandingPage() {
                             }}>
                                 <RadarWidget />
                                 <div>
-                                    <div className="text-xs text-slate-500 uppercase tracking-widest mb-1">Threat Level</div>
-                                    <div className="text-lg font-black text-teal-400" style={{ fontFamily: "'Share Tech Mono', monospace" }}>MINIMAL</div>
-                                    <div className="text-xs text-slate-600 mt-1">0 anomalies</div>
+                                    <div className="text-xs text-slate-500 uppercase tracking-widest mb-1">EVIDENCE INTEGRITY STATUS</div>
+                                    <div className="text-lg font-black text-teal-400" style={{ fontFamily: "'Share Tech Mono', monospace" }}>Status: SECURE</div>
+                                    <div className="text-xs text-slate-600 mt-1">0 evidence anomalies detected<br />All uploaded files verified</div>
                                 </div>
                             </div>
 
                             <div className="p-4 rounded-xl space-y-3" style={{
                                 background: "rgba(0,0,0,0.4)", border: "1px solid rgba(59,130,246,0.2)"
                             }}>
-                                <div className="text-xs text-slate-500 uppercase tracking-widest">Integrity Score</div>
+                                <div className="text-xs text-slate-500 uppercase tracking-widest">EVIDENCE METRICS</div>
                                 {[
-                                    { label: "Files Verified", pct: 100, color: "#14d2a0" },
-                                    { label: "Audit Coverage", pct: 98, color: "#3b82f6" },
-                                    { label: "Hash Matches", pct: 100, color: "#14d2a0" },
-                                ].map(({ label, pct, color }) => (
+                                    { label: "Evidence Files Stored", value: "8", pct: 100, color: "#14d2a0" },
+                                    { label: "Upload Success Rate", value: "100%", pct: 100, color: "#3b82f6" },
+                                    { label: "Case Records Verified", value: "100%", pct: 100, color: "#14d2a0" },
+                                ].map(({ label, pct, value, color }) => (
                                     <div key={label}>
                                         <div className="flex justify-between text-xs mb-1">
                                             <span className="text-slate-400">{label}</span>
-                                            <span style={{ color, fontFamily: "'Share Tech Mono', monospace" }}>{pct}%</span>
+                                            <span style={{ color, fontFamily: "'Share Tech Mono', monospace" }}>{value}</span>
                                         </div>
                                         <div className="h-1.5 rounded-full bg-white/5">
                                             <div className="h-full rounded-full threat-bar" style={{ width: `${pct}%`, background: `linear-gradient(90deg,${color},${color}80)` }} />

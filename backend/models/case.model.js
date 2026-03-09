@@ -20,13 +20,13 @@ const caseSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    default: "Pending" // Using Pending as per requirements instead of PENDING enum to match frontend and instructions
+    default: "Pending"
   },
   evidenceFile: {
-    type: String, // Store uploaded filename/path
+    type: String,
   },
   hash: {
-    type: String, // Placeholder hash
+    type: String,
   },
   createdAt: {
     type: Date,

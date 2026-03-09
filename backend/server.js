@@ -5,7 +5,7 @@ const cors = require("cors");
 const connectDB = require("./config/db");
 
 const caseRoutes = require("./routes/caseRoutes");
-const authRoutes = require("./routes/authRoutes"); // Added auth routes
+const authRoutes = require("./routes/authRoutes");
 
 const dns = require("dns");
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
@@ -15,7 +15,7 @@ connectDB();
 const app = express();
 
 app.use(cors({
-  origin: "http://localhost:5173", // Allow frontend URL
+  origin: "http://localhost:5173",
   credentials: true
 }));
 
@@ -30,7 +30,7 @@ app.get("/", (req, res) => {
 
 
 app.use("/api/cases", caseRoutes);
-app.use("/api/auth", authRoutes); // Register auth routing
+app.use("/api/auth", authRoutes);
 
 const PORT = process.env.PORT || 5001;
 
