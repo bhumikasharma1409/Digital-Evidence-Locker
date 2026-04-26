@@ -137,5 +137,3 @@ exports.deleteCase = async (req, res) => {
 
 
 
-
-router.get('/cookies' , (req,res) => {})
