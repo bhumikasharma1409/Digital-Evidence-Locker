@@ -157,6 +157,27 @@ export default function CaseDetails() {
     const [statusUpdating, setStatusUpdating] = useState(false);
     const evidenceFileInputRef = useRef(null);
 
+    const userRole = localStorage.getItem("role") || "user";
+    const [usersList, setUsersList] = useState([]);
+    const [verifying, setVerifying] = useState(false);
+    const [verificationResult, setVerificationResult] = useState(null);
+
+    const fetchUsers = async (token) => {
+        if (["admin", "police"].includes(userRole)) {
+            try {
+                const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+                const res = await axios.get(`${API_BASE_URL}/api/auth/users`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (res.data.success) {
+                    setUsersList(res.data.data);
+                }
+            } catch (err) {
+                console.error("Failed to load users for assignment:", err);
+            }
+        }
+    };
+
     const fetchCaseData = async () => {
         if (!id || id === ":id") {
             setError("Invalid Case ID provided in the URL directory.");
@@ -179,6 +200,7 @@ export default function CaseDetails() {
                     }
                 });
                 setCaseData(response.data.data);
+                fetchUsers(token);
             } catch (err) {
                 console.error("Error fetching case details:", err.response || err);
 
@@ -238,7 +260,10 @@ export default function CaseDetails() {
         status,
         activityLog,
         createdAt,
-        updatedAt
+        updatedAt,
+        assignedOfficer,
+        assignedLawyer,
+        createdBy
     } = caseData;
 
     const handleDeleteClick = () => {
@@ -338,6 +363,44 @@ export default function CaseDetails() {
         }
     };
 
+    const handleAssignUser = async (field, value) => {
+        try {
+            const token = localStorage.getItem("token");
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+            
+            await axios.put(`${API_BASE_URL}/api/cases/${id}`, { [field]: value || null }, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            
+            setToastMessage({ text: `Assignment updated successfully.`, type: "success" });
+            fetchCaseData();
+        } catch (err) {
+            console.error("Assignment update error:", err);
+            setToastMessage({ text: "Failed to allocate assignment.", type: "error" });
+        }
+    };
+
+    const handleVerifyEvidence = async () => {
+        try {
+            setVerifying(true);
+            setVerificationResult(null);
+            const token = localStorage.getItem("token");
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+            const res = await axios.get(`${API_BASE_URL}/api/cases/${id}/verify-evidence`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            setVerificationResult({
+                status: res.data.message,
+                ok: res.data.verified
+            });
+            fetchCaseData();
+        } catch (err) {
+            setToastMessage({ text: "Error verifying evidence integrity.", type: "error" });
+        } finally {
+            setVerifying(false);
+        }
+    };
+
     return (
         <div className="min-h-screen w-full bg-[#0a0f1a] text-slate-100 overflow-x-hidden relative" style={{ fontFamily: "system-ui, sans-serif" }}>
             <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
@@ -363,9 +426,11 @@ export default function CaseDetails() {
                         <span>←</span> BACK TO DIRECTORY
                     </button>
 
-                    <button onClick={handleDeleteClick} className="flex items-center gap-2 px-4 py-2 border border-red-500/30 text-red-500 bg-red-500/10 hover:bg-red-500/20 rounded-lg text-xs font-bold font-mono transition-colors">
-                        <span>🗑️ DELETE RECORD</span>
-                    </button>
+                    {["admin", "police"].includes(userRole) && (
+                        <button onClick={handleDeleteClick} className="flex items-center gap-2 px-4 py-2 border border-red-500/30 text-red-500 bg-red-500/10 hover:bg-red-500/20 rounded-lg text-xs font-bold font-mono transition-colors">
+                            <span>🗑️ DELETE RECORD</span>
+                        </button>
+                    )}
                 </div>
 
                 {/* HEADER SECTION */}
@@ -376,24 +441,28 @@ export default function CaseDetails() {
                                 <div className="relative group/status">
                                     <HexBadge label={status || "Pending"} color="teal" />
                                     
-                                    <select 
-                                        value={status || "Pending"} 
-                                        onChange={handleStatusChange}
-                                        disabled={statusUpdating}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-xs"
-                                        title="Shift case classification"
-                                    >
-                                        <option value="Pending">Pending</option>
-                                        <option value="Under Investigation">Under Investigation</option>
-                                        <option value="Verified">Verified</option>
-                                        <option value="Closed">Closed</option>
-                                    </select>
-                                    
-                                    {statusUpdating && (
-                                        <div className="absolute -top-1 -right-1 flex h-3 w-3">
-                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                                          <span className="relative inline-flex rounded-full h-3 w-3 bg-teal-500"></span>
-                                        </div>
+                                    {["admin", "police", "forensic"].includes(userRole) && (
+                                        <>
+                                            <select 
+                                                value={status || "Pending"} 
+                                                onChange={handleStatusChange}
+                                                disabled={statusUpdating}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-xs"
+                                                title="Shift case classification"
+                                            >
+                                                <option value="Pending">Pending</option>
+                                                <option value="Under Investigation">Under Investigation</option>
+                                                <option value="Verified">Verified</option>
+                                                <option value="Closed">Closed</option>
+                                            </select>
+                                            
+                                            {statusUpdating && (
+                                                <div className="absolute -top-1 -right-1 flex h-3 w-3">
+                                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                                                  <span className="relative inline-flex rounded-full h-3 w-3 bg-teal-500"></span>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                                 <span className="px-2 py-1 bg-white/5 border border-white/10 rounded text-xs font-mono text-slate-400">
@@ -406,13 +475,43 @@ export default function CaseDetails() {
                         </div>
 
 
-                        <div className="md:text-right p-4 rounded-xl bg-black/40 border border-teal-500/20 shadow-[0_0_15px_rgba(20,210,160,0.05)]">
-                            <div className="text-xs text-slate-500 font-bold tracking-widest mb-1 font-mono">ASSIGNED AGENT</div>
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-teal-400 text-xs">
-                                    👁️
-                                </div>
-                                <div className="text-sm text-slate-200 font-mono">Agent-X7 (Automated)</div>
+                        <div className="md:text-right p-4 rounded-xl bg-black/40 border border-teal-500/20 shadow-[0_0_15px_rgba(20,210,160,0.05)] space-y-4">
+                            {/* Officer Alignment */}
+                            <div className="flex flex-col md:items-end gap-1">
+                                <div className="text-[10px] text-slate-500 font-bold tracking-widest font-mono uppercase">ASSIGNED EXAMINER</div>
+                                {["admin", "police"].includes(userRole) ? (
+                                    <select 
+                                        value={assignedOfficer?._id || ""}
+                                        onChange={(e) => handleAssignUser("assignedOfficer", e.target.value)}
+                                        className="bg-black/60 border border-teal-500/40 text-teal-400 text-xs px-2 py-1 rounded font-mono w-full md:w-auto"
+                                    >
+                                        <option value="">-- UNASSIGNED --</option>
+                                        {usersList.filter(u => u.role === "police" || u.role === "forensic").map(u => (
+                                            <option key={u._id} value={u._id}>{u.fullName} [{u.role.toUpperCase()}]</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="text-sm text-teal-300 font-mono">{assignedOfficer ? assignedOfficer.fullName : "UNASSIGNED"}</div>
+                                )}
+                            </div>
+
+                            {/* Lawyer Alignment */}
+                            <div className="flex flex-col md:items-end gap-1">
+                                <div className="text-[10px] text-slate-500 font-bold tracking-widest font-mono uppercase">LEGAL OVERSIGHT</div>
+                                {["admin", "police"].includes(userRole) ? (
+                                    <select 
+                                        value={assignedLawyer?._id || ""}
+                                        onChange={(e) => handleAssignUser("assignedLawyer", e.target.value)}
+                                        className="bg-black/60 border border-blue-500/40 text-blue-400 text-xs px-2 py-1 rounded font-mono w-full md:w-auto"
+                                    >
+                                        <option value="">-- UNASSIGNED --</option>
+                                        {usersList.filter(u => u.role === "lawyer").map(u => (
+                                            <option key={u._id} value={u._id}>{u.fullName} [LAWYER]</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="text-sm text-blue-300 font-mono">{assignedLawyer ? assignedLawyer.fullName : "UNASSIGNED"}</div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -499,7 +598,11 @@ export default function CaseDetails() {
                                         </div>
                                         <div>
                                             <h2 className="text-2xl font-black text-white" style={{ fontFamily: "'Share Tech Mono', monospace" }}>Evidence Vault</h2>
-                                            <div className="text-xs text-teal-500 tracking-widest font-mono uppercase">Cryptographic Seal Intact</div>
+                                            {verificationResult && (
+                                                <div className={`mt-1 text-[10px] tracking-widest font-mono uppercase font-bold px-2 py-0.5 rounded border inline-block ${verificationResult.ok ? 'bg-teal-500/10 border-teal-400/50 text-teal-400' : 'bg-red-500/10 border-red-400/50 text-red-500 animate-pulse'}`}>
+                                                    {verificationResult.status}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -537,34 +640,50 @@ export default function CaseDetails() {
                                             </div>
                                         </div>
 
-                                        <div className="mt-4 pt-4 border-t border-teal-500/10 text-center">
-                                            <input 
-                                                type="file" 
-                                                ref={evidenceFileInputRef} 
-                                                onChange={handleUploadEvidence} 
-                                                className="hidden" 
-                                            />
-                                            <button 
-                                                onClick={() => evidenceFileInputRef.current?.click()}
-                                                disabled={uploading}
-                                                className="px-4 py-2 bg-black/40 border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 text-xs font-mono font-bold rounded-lg transition-colors inline-flex items-center gap-2"
-                                            >
-                                                {uploading ? (
-                                                    <><span className="animate-spin text-lg">⏳</span> SYNCING TO LEDGER...</>
-                                                ) : (
-                                                    <>🔄 OVERWRITE & RE-SEAL EVIDENCE</>
-                                                )}
-                                            </button>
+                                        <div className="mt-4 pt-4 border-t border-teal-500/10 text-center flex flex-col items-center gap-4">
+                                            {/* Verification Request strictly for Forensic / Police */}
+                                            {["admin", "police", "forensic"].includes(userRole) && (
+                                                <button 
+                                                    onClick={handleVerifyEvidence}
+                                                    disabled={verifying}
+                                                    className={`px-5 py-2.5 w-full max-w-sm rounded-lg font-bold text-xs tracking-widest uppercase font-mono transition-transform  ${verifying ? 'opacity-50' : 'hover:scale-[1.02]'} bg-blue-500/20 border border-blue-500/50 text-blue-400 hover:bg-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.15)]`}
+                                                >
+                                                    {verifying ? "COMPUTING SHA-256..." : "VERIFY INTEGRITY RECORD"}
+                                                </button>
+                                            )}
+
+                                            {["admin", "police", "forensic"].includes(userRole) && (
+                                                <>
+                                                    <input 
+                                                        type="file" 
+                                                        ref={evidenceFileInputRef} 
+                                                        onChange={handleUploadEvidence} 
+                                                        className="hidden" 
+                                                    />
+                                                    <button 
+                                                        onClick={() => evidenceFileInputRef.current?.click()}
+                                                        disabled={uploading}
+                                                        className="px-4 py-2 bg-black/40 border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 text-[10px] font-mono font-bold rounded-lg transition-colors inline-flex items-center gap-2"
+                                                    >
+                                                        {uploading ? (
+                                                            <><span className="animate-spin text-lg">⏳</span> SYNCING TO LEDGER...</>
+                                                        ) : (
+                                                            <>🔄 OVERWRITE & RE-SEAL EVIDENCE</>
+                                                        )}
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
 
                                     </div>
                                 ) : (
-                                    <div className="p-12 flex flex-col items-center justify-center text-center border-2 border-dashed border-teal-500/30 rounded-xl bg-teal-500/5 transition-colors hover:bg-teal-500/10 hover:border-teal-500/50 group/upload" onClick={() => evidenceFileInputRef.current?.click()}>
+                                    <div className="p-12 flex flex-col items-center justify-center text-center border-2 border-dashed border-teal-500/30 rounded-xl bg-teal-500/5 transition-colors hover:bg-teal-500/10 hover:border-teal-500/50 group/upload" onClick={() => ["admin", "police", "forensic"].includes(userRole) && evidenceFileInputRef.current?.click()}>
                                         <input 
                                             type="file" 
                                             ref={evidenceFileInputRef} 
                                             onChange={handleUploadEvidence} 
                                             className="hidden" 
+                                            disabled={!["admin", "police", "forensic"].includes(userRole)}
                                         />
                                         <div className={`text-4xl opacity-80 mb-4 block transition-transform ${uploading ? 'animate-bounce' : 'group-hover/upload:scale-110'}`}>
                                             {uploading ? '⏳' : '📤'}
@@ -575,12 +694,14 @@ export default function CaseDetails() {
                                         <p className="text-xs text-slate-500 font-mono mb-6 max-w-sm">
                                             No cryptographic evidence objects located for this case. Click to securely seal a new file into the immutable ledger and compute SHA-256 hash.
                                         </p>
-                                        <button 
+                                        {["admin", "police", "forensic"].includes(userRole) && (
+                                            <button 
                                                 disabled={uploading}
                                                 className="px-6 py-2.5 bg-teal-500 text-black hover:bg-teal-400 font-bold text-xs uppercase tracking-widest font-mono rounded-lg transition-transform hover:scale-105"
                                             >
                                                 {uploading ? "ENCRYPTING..." : "SELECT FILE FORENSICS"}
-                                        </button>
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>

@@ -98,6 +98,7 @@ export default function Login() {
                 // Save token to localStorage
                 if (data.token) {
                     localStorage.setItem("token", data.token);
+                    if (data.role) localStorage.setItem("role", data.role);
                 }
                 // Redirect to dashboard page
                 navigate("/dashboard");

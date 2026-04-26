@@ -10,6 +10,14 @@ const caseSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User"
   },
+  assignedOfficer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User"
+  },
+  assignedLawyer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User"
+  },
   editHistory: [
     {
       editedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

@@ -27,7 +27,7 @@ const upload = multer({
     }
 });
 
-const { createCase, getCases, getCaseById, getUserCases, uploadEvidence, deleteCase, updateCase } = require("../controllers/caseController");
+const { createCase, getCases, getCaseById, getUserCases, uploadEvidence, deleteCase, updateCase, verifyEvidence } = require("../controllers/caseController");
 
 
 router.post("/upload-evidence", protect, authorizeRoles("user", "admin"), upload.single("evidenceFile"), uploadEvidence);
@@ -41,9 +41,11 @@ router.get("/", protect, authorizeRoles("user", "lawyer", "police", "admin"), ge
 
 router
     .route("/:id")
-    .get(protect, authorizeRoles("user", "lawyer", "police", "admin"), getCaseById)
-    .put(protect, authorizeRoles("user", "lawyer", "police", "admin"), upload.single("evidenceFile"), updateCase)
+    .get(protect, authorizeRoles("user", "lawyer", "police", "forensic", "admin"), getCaseById)
+    .put(protect, authorizeRoles("user", "lawyer", "police", "forensic", "admin"), upload.single("evidenceFile"), updateCase)
     .delete(protect, authorizeRoles("user", "admin"), deleteCase);
+
+router.get("/:id/verify-evidence", protect, authorizeRoles("police", "forensic", "admin"), verifyEvidence);
 
 
 router.get("/user/:userId", protect, getUserCases);

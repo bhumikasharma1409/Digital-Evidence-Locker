@@ -67,7 +67,7 @@ exports.createCase = async (req, res) => {
 
 exports.updateCase = async (req, res) => {
   try {
-    const { title, category, description, status } = req.body;
+    const { title, category, description, status, assignedOfficer, assignedLawyer } = req.body;
     let caseItem = await Case.findById(req.params.id);
 
     if (!caseItem) {
@@ -96,9 +96,24 @@ exports.updateCase = async (req, res) => {
     if (title) caseItem.title = title;
     if (category) caseItem.category = category;
     if (description) caseItem.description = description;
+
     if (status) {
+      if (caseItem.status !== status) caseItem.activityLog.push(`Status Updated: ${status}`);
       caseItem.status = status;
-      caseItem.activityLog.push(`Status Updated: ${status}`);
+    }
+
+    if (assignedOfficer) {
+      if (caseItem.assignedOfficer?.toString() !== assignedOfficer) {
+        caseItem.activityLog.push("Officer Assignment Updated");
+      }
+      caseItem.assignedOfficer = assignedOfficer;
+    }
+
+    if (assignedLawyer) {
+      if (caseItem.assignedLawyer?.toString() !== assignedLawyer) {
+        caseItem.activityLog.push("Lawyer Assignment Updated");
+      }
+      caseItem.assignedLawyer = assignedLawyer;
     }
 
     if (req.file) {
@@ -132,10 +147,14 @@ exports.getCases = async (req, res) => {
     let query = {};
     if (req.user.role === "user") {
       query = { createdBy: req.user._id };
+    } else if (req.user.role === "lawyer") {
+      query = { assignedLawyer: req.user._id };
     }
 
     const cases = await Case.find(query)
       .populate("createdBy", "fullName role email")
+      .populate("assignedOfficer", "fullName role")
+      .populate("assignedLawyer", "fullName role")
       .populate("lastEditedBy", "fullName role")
       .populate("editHistory.editedBy", "fullName role")
       .sort({ createdAt: -1 });
@@ -153,6 +172,8 @@ exports.getCaseById = async (req, res) => {
   try {
     const singleCase = await Case.findById(req.params.id)
       .populate("createdBy", "fullName role email")
+      .populate("assignedOfficer", "fullName role")
+      .populate("assignedLawyer", "fullName role")
       .populate("lastEditedBy", "fullName role")
       .populate("editHistory.editedBy", "fullName role");
 
@@ -220,6 +241,35 @@ exports.deleteCase = async (req, res) => {
   } catch (error) {
     console.error("Error deleting case:", error);
     res.status(500).json({ success: false, message: "Server error: " + error.message });
+  }
+};
+
+exports.verifyEvidence = async (req, res) => {
+  try {
+    const caseItem = await Case.findById(req.params.id);
+    if (!caseItem) {
+      return res.status(404).json({ success: false, message: "Case not found." });
+    }
+
+    if (!caseItem.evidenceFile) {
+      return res.status(400).json({ success: false, message: "No evidence file attached to verify." });
+    }
+
+    const currentHash = generateHash(caseItem.evidenceFile);
+
+    if (currentHash === caseItem.hash) {
+      caseItem.activityLog.push("Verification Requested - SEAL INTACT");
+      await caseItem.save();
+      return res.status(200).json({ success: true, message: "SEAL INTACT", verified: true });
+    } else {
+      caseItem.activityLog.push("Verification Requested - TAMPERED WARNING");
+      await caseItem.save();
+      return res.status(200).json({ success: true, message: "TAMPERED", verified: false });
+    }
+
+  } catch (error) {
+    console.error("Error verifying evidence:", error);
+    res.status(500).json({ success: false, message: "Verification system error: " + error.message });
   }
 };
 
