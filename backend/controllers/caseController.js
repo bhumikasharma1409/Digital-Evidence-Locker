@@ -25,7 +25,7 @@ exports.createCase = async (req, res) => {
       description,
       hash: fakeHash,
       evidenceFile,
-      user: req.user._id
+      createdBy: req.user._id
     });
 
     const savedCase = await newCase.save();
@@ -47,10 +47,69 @@ exports.createCase = async (req, res) => {
 };
 
 
+exports.updateCase = async (req, res) => {
+  try {
+    const { title, category, description, status } = req.body;
+    let caseItem = await Case.findById(req.params.id);
+
+    if (!caseItem) {
+      return res.status(404).json({ success: false, message: "Case not found" });
+    }
+
+    if (caseItem.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: "Not authorized to edit this case" });
+    }
+
+    const changes = [];
+    if (title && caseItem.title !== title) changes.push("title updated");
+    if (category && caseItem.category !== category) changes.push("category updated");
+    if (description && caseItem.description !== description) changes.push("description updated");
+    if (status && caseItem.status !== status) changes.push("status updated");
+    if (req.file) changes.push("evidence file updated");
+
+    if (changes.length === 0) {
+      return res.status(400).json({ success: false, message: "No changes detected" });
+    }
+
+    if (title) caseItem.title = title;
+    if (category) caseItem.category = category;
+    if (description) caseItem.description = description;
+    if (status) caseItem.status = status;
+    if (req.file) caseItem.evidenceFile = req.file.path;
+
+    caseItem.lastEditedBy = req.user._id;
+    caseItem.editHistory.push({
+      editedBy: req.user._id,
+      timestamp: Date.now(),
+      changes: changes.join(", ")
+    });
+
+    const updatedCase = await caseItem.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Case updated successfully",
+      data: updatedCase,
+    });
+  } catch (error) {
+    console.error("Error updating case:", error);
+    res.status(500).json({ success: false, message: "Server error: " + error.message });
+  }
+};
+
 exports.getCases = async (req, res) => {
   try {
+    let query = {};
+    if (req.user.role === "user") {
+      query = { createdBy: req.user._id };
+    }
 
-    const cases = await Case.find({ user: req.user._id }).sort({ createdAt: -1 });
+    const cases = await Case.find(query)
+      .populate("createdBy", "fullName role email")
+      .populate("lastEditedBy", "fullName role")
+      .populate("editHistory.editedBy", "fullName role")
+      .sort({ createdAt: -1 });
+
     res.status(200).json({
       success: true,
       data: cases
@@ -62,7 +121,11 @@ exports.getCases = async (req, res) => {
 
 exports.getCaseById = async (req, res) => {
   try {
-    const singleCase = await Case.findById(req.params.id);
+    const singleCase = await Case.findById(req.params.id)
+      .populate("createdBy", "fullName role email")
+      .populate("lastEditedBy", "fullName role")
+      .populate("editHistory.editedBy", "fullName role");
+
     if (!singleCase) {
       return res.status(404).json({ success: false, message: "Case not found" });
     }
@@ -122,7 +185,7 @@ exports.deleteCase = async (req, res) => {
       return res.status(404).json({ success: false, message: "Case not found" });
     }
 
-    if (caseItem.user.toString() !== req.user._id.toString()) {
+    if (caseItem.createdBy.toString() !== req.user._id.toString() && req.user.role !== "admin") {
       return res.status(403).json({ success: false, message: "Not authorized to delete this case" });
     }
 

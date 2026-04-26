@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const path = require("path");
-const { protect } = require("../middleware/authMiddleware");
+const { protect, authorizeRoles } = require("../middleware/authMiddleware");
 
 
 const storage = multer.diskStorage({
@@ -27,22 +27,23 @@ const upload = multer({
     }
 });
 
-const { createCase, getCases, getCaseById, getUserCases, uploadEvidence, deleteCase } = require("../controllers/caseController");
+const { createCase, getCases, getCaseById, getUserCases, uploadEvidence, deleteCase, updateCase } = require("../controllers/caseController");
 
 
-router.post("/upload-evidence", protect, upload.single("evidenceFile"), uploadEvidence);
+router.post("/upload-evidence", protect, authorizeRoles("user", "admin"), upload.single("evidenceFile"), uploadEvidence);
 
 
-router.post("/", protect, upload.single("evidenceFile"), createCase);
+router.post("/", protect, authorizeRoles("user", "admin"), upload.single("evidenceFile"), createCase);
 
 
-router.get("/", protect, getCases);
+router.get("/", protect, authorizeRoles("user", "lawyer", "police", "admin"), getCases);
 
 
 router
     .route("/:id")
-    .get(protect, getCaseById)
-    .delete(protect, deleteCase);
+    .get(protect, authorizeRoles("user", "lawyer", "police", "admin"), getCaseById)
+    .put(protect, authorizeRoles("user"), upload.single("evidenceFile"), updateCase)
+    .delete(protect, authorizeRoles("user", "admin"), deleteCase);
 
 
 router.get("/user/:userId", protect, getUserCases);
