@@ -29,6 +29,7 @@ const registerUser = async (req, res) => {
             fullName,
             email,
             password,
+            role: req.body.role || 'user' // allow role strictly for initial setup/testing
         });
 
         if (user) {
@@ -37,6 +38,7 @@ const registerUser = async (req, res) => {
                 _id: user._id,
                 fullName: user.fullName,
                 email: user.email,
+                role: user.role,
                 token: generateToken(user._id),
             });
         } else {
@@ -61,6 +63,7 @@ const loginUser = async (req, res) => {
                 _id: user._id,
                 fullName: user.fullName,
                 email: user.email,
+                role: user.role, // Return the role to the frontend
                 token: generateToken(user._id),
             });
         } else {
