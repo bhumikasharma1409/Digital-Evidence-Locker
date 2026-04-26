@@ -7,6 +7,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import ConfirmationModal from "../components/ConfirmationModal";
 import Toast from "../components/Toast";
+import EvidenceCard from "../components/EvidenceCard";
 
 // --- Matrix Rain Canvas ---
 function MatrixRain() {
@@ -139,7 +140,6 @@ const renderEvidenceFile = (filePath) => {
     }
 };
 
-
 export default function CaseDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -159,8 +159,9 @@ export default function CaseDetails() {
 
     const userRole = localStorage.getItem("role") || "user";
     const [usersList, setUsersList] = useState([]);
-    const [verifying, setVerifying] = useState(false);
-    const [verificationResult, setVerificationResult] = useState(null);
+    
+    // Legacy single-evidence fields (removed verify/verificatioResult since we use EvidenceCard)
+    const [evidenceList, setEvidenceList] = useState([]);
 
     const fetchUsers = async (token) => {
         if (["admin", "police"].includes(userRole)) {
@@ -201,6 +202,7 @@ export default function CaseDetails() {
                 });
                 setCaseData(response.data.data);
                 fetchUsers(token);
+                fetchEvidence(token);
             } catch (err) {
                 console.error("Error fetching case details:", err.response || err);
 
@@ -215,6 +217,22 @@ export default function CaseDetails() {
             } finally {
                 setLoading(false);
             }
+    };
+
+    const fetchEvidence = async (token) => {
+        try {
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+            const response = await axios.get(`${API_BASE_URL}/api/evidence/case/${id}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            if (response.data.success) {
+                setEvidenceList(response.data.data);
+            }
+        } catch (err) {
+            console.error("Error fetching native evidence list:", err);
+        }
     };
 
     useEffect(() => {
@@ -319,8 +337,9 @@ export default function CaseDetails() {
             
             const formData = new FormData();
             formData.append("evidenceFile", file);
+            formData.append("caseId", id);
 
-            await axios.put(`${API_BASE_URL}/api/cases/${id}`, formData, {
+            await axios.post(`${API_BASE_URL}/api/evidence`, formData, {
                 headers: {
                     "Authorization": `Bearer ${token}`,
                     "Content-Type": "multipart/form-data"
@@ -328,7 +347,7 @@ export default function CaseDetails() {
             });
             
             setToastMessage({ text: "Cryptographic Evidence generated and sealed successfully.", type: "success" });
-            fetchCaseData();
+            fetchCaseData(); // Refreshes everything
         } catch (err) {
             console.error("Upload error:", err);
             setToastMessage({ text: err.response?.data?.message || "Failed to seal evidence.", type: "error" });
@@ -377,27 +396,6 @@ export default function CaseDetails() {
         } catch (err) {
             console.error("Assignment update error:", err);
             setToastMessage({ text: "Failed to allocate assignment.", type: "error" });
-        }
-    };
-
-    const handleVerifyEvidence = async () => {
-        try {
-            setVerifying(true);
-            setVerificationResult(null);
-            const token = localStorage.getItem("token");
-            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
-            const res = await axios.get(`${API_BASE_URL}/api/cases/${id}/verify-evidence`, {
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-            setVerificationResult({
-                status: res.data.message,
-                ok: res.data.verified
-            });
-            fetchCaseData();
-        } catch (err) {
-            setToastMessage({ text: "Error verifying evidence integrity.", type: "error" });
-        } finally {
-            setVerifying(false);
         }
     };
 
@@ -591,119 +589,59 @@ export default function CaseDetails() {
                             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-teal-500 to-transparent opacity-50" />
 
                             <div className="p-6 md:p-8">
-                                <div className="flex flex-wrap items-end justify-between gap-4 mb-8 border-b border-teal-500/10 pb-4">
+                                <div className="flex flex-wrap items-end justify-between gap-4 mb-6 border-b border-teal-500/10 pb-4">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-lg flex flex-col items-center justify-center border border-teal-500/40 bg-teal-500/10 shadow-[0_0_15px_rgba(20,210,160,0.15)] text-teal-400">
                                             🗄️
                                         </div>
                                         <div>
                                             <h2 className="text-2xl font-black text-white" style={{ fontFamily: "'Share Tech Mono', monospace" }}>Evidence Vault</h2>
-                                            {verificationResult && (
-                                                <div className={`mt-1 text-[10px] tracking-widest font-mono uppercase font-bold px-2 py-0.5 rounded border inline-block ${verificationResult.ok ? 'bg-teal-500/10 border-teal-400/50 text-teal-400' : 'bg-red-500/10 border-red-400/50 text-red-500 animate-pulse'}`}>
-                                                    {verificationResult.status}
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
 
                                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black border border-slate-800 text-xs font-mono text-slate-400">
                                         <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse shadow-[0_0_5px_#14d2a0]" />
-                                        {evidenceFile ? "1 ITEM SEALED" : "NO EVIDENCE FOUND"}
+                                        {evidenceList.length > 0 ? `${evidenceList.length} ITEMS DECRYPTED` : "NO EVIDENCE FOUND"}
                                     </div>
                                 </div>
 
-                                {evidenceFile ? (
-                                    <div className="space-y-6">
-
-                                        {/* File Card Preview */}
-                                        {renderEvidenceFile(evidenceFile)}
-
-                                        {/* Cryptographic Proof Metadata */}
-                                        <div className="p-5 rounded-xl border border-slate-700 bg-black/50 space-y-3 font-mono">
-                                            <div className="flex justify-between items-start flex-wrap gap-2 text-xs">
-                                                <span className="text-slate-500 font-bold uppercase tracking-wider">File Origin</span>
-                                                <span className="text-slate-300 truncate max-w-[200px] sm:max-w-xs block">{evidenceFile.split('/').pop() || evidenceFile.split('\\').pop() || evidenceFile}</span>
-                                            </div>
-
-                                            <div className="flex justify-between items-center text-xs">
-                                                <span className="text-slate-500 font-bold uppercase tracking-wider">Extraction Date</span>
-                                                <span className="text-slate-300">{new Date(updatedAt || createdAt).toLocaleString()}</span>
-                                            </div>
-
-                                            <div className="h-px w-full bg-slate-800" />
-
-                                            <div className="flex justify-between items-center text-xs mt-2">
-                                                <span className="text-teal-500/70 font-bold uppercase tracking-wider">SHA-256 Digest</span>
-                                                <span className="text-[10px] text-teal-400 font-bold bg-teal-500/5 px-2 py-1 rounded border border-teal-500/20 truncate max-w-[200px] sm:max-w-md ml-2 select-all">
-                                                    {hash || "HASH_COMPUTATION_PENDING..."}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-4 pt-4 border-t border-teal-500/10 text-center flex flex-col items-center gap-4">
-                                            {/* Verification Request strictly for Forensic / Police */}
-                                            {["admin", "police", "forensic"].includes(userRole) && (
-                                                <button 
-                                                    onClick={handleVerifyEvidence}
-                                                    disabled={verifying}
-                                                    className={`px-5 py-2.5 w-full max-w-sm rounded-lg font-bold text-xs tracking-widest uppercase font-mono transition-transform  ${verifying ? 'opacity-50' : 'hover:scale-[1.02]'} bg-blue-500/20 border border-blue-500/50 text-blue-400 hover:bg-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.15)]`}
-                                                >
-                                                    {verifying ? "COMPUTING SHA-256..." : "VERIFY INTEGRITY RECORD"}
-                                                </button>
-                                            )}
-
-                                            {["admin", "police", "forensic"].includes(userRole) && (
-                                                <>
-                                                    <input 
-                                                        type="file" 
-                                                        ref={evidenceFileInputRef} 
-                                                        onChange={handleUploadEvidence} 
-                                                        className="hidden" 
-                                                    />
-                                                    <button 
-                                                        onClick={() => evidenceFileInputRef.current?.click()}
-                                                        disabled={uploading}
-                                                        className="px-4 py-2 bg-black/40 border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 text-[10px] font-mono font-bold rounded-lg transition-colors inline-flex items-center gap-2"
-                                                    >
-                                                        {uploading ? (
-                                                            <><span className="animate-spin text-lg">⏳</span> SYNCING TO LEDGER...</>
-                                                        ) : (
-                                                            <>🔄 OVERWRITE & RE-SEAL EVIDENCE</>
-                                                        )}
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-
-                                    </div>
-                                ) : (
-                                    <div className="p-12 flex flex-col items-center justify-center text-center border-2 border-dashed border-teal-500/30 rounded-xl bg-teal-500/5 transition-colors hover:bg-teal-500/10 hover:border-teal-500/50 group/upload" onClick={() => ["admin", "police", "forensic"].includes(userRole) && evidenceFileInputRef.current?.click()}>
-                                        <input 
-                                            type="file" 
-                                            ref={evidenceFileInputRef} 
-                                            onChange={handleUploadEvidence} 
-                                            className="hidden" 
-                                            disabled={!["admin", "police", "forensic"].includes(userRole)}
+                                <div className="space-y-6">
+                                    {evidenceList.map(ev => (
+                                        <EvidenceCard 
+                                            key={ev._id} 
+                                            evidence={ev} 
+                                            userRole={userRole} 
+                                            refreshData={() => fetchEvidence(localStorage.getItem("token"))} 
+                                            usersList={usersList} 
                                         />
-                                        <div className={`text-4xl opacity-80 mb-4 block transition-transform ${uploading ? 'animate-bounce' : 'group-hover/upload:scale-110'}`}>
-                                            {uploading ? '⏳' : '📤'}
-                                        </div>
-                                        <h3 className="text-teal-400 font-bold font-mono tracking-widest text-sm mb-2">
-                                            {uploading ? "UPLOADING EVIDENCE..." : "VAULT EMPTY - UPLOAD EVIDENCE"}
-                                        </h3>
-                                        <p className="text-xs text-slate-500 font-mono mb-6 max-w-sm">
-                                            No cryptographic evidence objects located for this case. Click to securely seal a new file into the immutable ledger and compute SHA-256 hash.
-                                        </p>
-                                        {["admin", "police", "forensic"].includes(userRole) && (
+                                    ))}
+
+                                    {/* Upload Trigger Area */}
+                                    {["admin", "police", "forensic", "user"].includes(userRole) && (
+                                        <div className={`mt-8 pt-8 border-t border-teal-500/10 ${evidenceList.length === 0 ? 'text-center p-8 border-2 border-dashed border-teal-500/30 rounded-xl bg-teal-500/5 hover:bg-teal-500/10' : ''}`}>
+                                            <input 
+                                                type="file" 
+                                                ref={evidenceFileInputRef} 
+                                                onChange={handleUploadEvidence} 
+                                                className="hidden" 
+                                            />
+                                            {evidenceList.length === 0 && (
+                                                <div className="mb-4 text-4xl block">📤</div>
+                                            )}
                                             <button 
+                                                onClick={() => evidenceFileInputRef.current?.click()}
                                                 disabled={uploading}
-                                                className="px-6 py-2.5 bg-teal-500 text-black hover:bg-teal-400 font-bold text-xs uppercase tracking-widest font-mono rounded-lg transition-transform hover:scale-105"
+                                                className={`px-6 py-2.5 bg-teal-500 text-black hover:bg-teal-400 font-bold text-xs uppercase tracking-widest font-mono rounded-lg transition-transform ${evidenceList.length > 0 ? '' : 'hover:scale-105'}`}
                                             >
-                                                {uploading ? "ENCRYPTING..." : "SELECT FILE FORENSICS"}
+                                                {uploading ? (
+                                                    <><span className="animate-spin inline-block">⏳</span> SYNCING TO LEDGER...</>
+                                                ) : (
+                                                    evidenceList.length > 0 ? "+ UPLOAD NEW EVIDENCE" : "INITIALIZE EVIDENCE RECORD"
+                                                )}
                                             </button>
-                                        )}
-                                    </div>
-                                )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
