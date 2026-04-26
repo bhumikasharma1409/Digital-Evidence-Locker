@@ -1,6 +1,18 @@
 const Case = require("../models/case.model");
 const crypto = require("crypto");
+const fs = require("fs");
 
+const generateHash = (filePath) => {
+    try {
+        const fileBuffer = fs.readFileSync(filePath);
+        const hashSum = crypto.createHash("sha256");
+        hashSum.update(fileBuffer);
+        return hashSum.digest("hex");
+    } catch (e) {
+        console.error("Error generating hash:", e);
+        return null;
+    }
+};
 exports.createCase = async (req, res) => {
   try {
     const { title, category, description } = req.body;
@@ -14,17 +26,23 @@ exports.createCase = async (req, res) => {
     }
 
 
-    const fakeHash = crypto.randomBytes(32).toString("hex");
+    let evidenceFile = null;
+    let fileHash = null;
+    let logEntries = ["Case Created"];
 
-
-    const evidenceFile = req.file ? req.file.path : null;
+    if (req.file) {
+      evidenceFile = req.file.path;
+      fileHash = generateHash(evidenceFile);
+      logEntries.push("Evidence Uploaded on Creation");
+    }
 
     const newCase = new Case({
       title,
       category,
       description,
-      hash: fakeHash,
+      hash: fileHash,
       evidenceFile,
+      activityLog: logEntries,
       createdBy: req.user._id
     });
 
@@ -56,7 +74,11 @@ exports.updateCase = async (req, res) => {
       return res.status(404).json({ success: false, message: "Case not found" });
     }
 
-    if (caseItem.createdBy.toString() !== req.user._id.toString()) {
+    const isCreator = caseItem.createdBy.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === "admin";
+    const isOfficial = ["police", "lawyer"].includes(req.user.role);
+
+    if (!isCreator && !isAdmin && !isOfficial) {
       return res.status(403).json({ success: false, message: "Not authorized to edit this case" });
     }
 
@@ -74,8 +96,16 @@ exports.updateCase = async (req, res) => {
     if (title) caseItem.title = title;
     if (category) caseItem.category = category;
     if (description) caseItem.description = description;
-    if (status) caseItem.status = status;
-    if (req.file) caseItem.evidenceFile = req.file.path;
+    if (status) {
+      caseItem.status = status;
+      caseItem.activityLog.push(`Status Updated: ${status}`);
+    }
+
+    if (req.file) {
+      caseItem.evidenceFile = req.file.path;
+      caseItem.hash = generateHash(req.file.path);
+      caseItem.activityLog.push("Evidence Uploaded / Re-SEALED");
+    }
 
     caseItem.lastEditedBy = req.user._id;
     caseItem.editHistory.push({
@@ -132,11 +162,6 @@ exports.getCaseById = async (req, res) => {
 
 
     const caseData = singleCase.toObject();
-    caseData.activityLog = [
-      "Case Created",
-      "Evidence Uploaded",
-      "Status: Pending"
-    ];
 
     res.status(200).json({
       success: true,

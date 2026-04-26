@@ -42,7 +42,7 @@ router.get("/", protect, authorizeRoles("user", "lawyer", "police", "admin"), ge
 router
     .route("/:id")
     .get(protect, authorizeRoles("user", "lawyer", "police", "admin"), getCaseById)
-    .put(protect, authorizeRoles("user"), upload.single("evidenceFile"), updateCase)
+    .put(protect, authorizeRoles("user", "lawyer", "police", "admin"), upload.single("evidenceFile"), updateCase)
     .delete(protect, authorizeRoles("user", "admin"), deleteCase);
 
 

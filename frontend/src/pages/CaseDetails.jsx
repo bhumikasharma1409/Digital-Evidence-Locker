@@ -152,21 +152,25 @@ export default function CaseDetails() {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [toastMessage, setToastMessage] = useState(null);
 
-    useEffect(() => {
-        const fetchCaseData = async () => {
-            if (!id || id === ":id") {
-                setError("Invalid Case ID provided in the URL directory.");
-                setLoading(false);
-                return;
-            }
+    // New states for File Upload & Update
+    const [uploading, setUploading] = useState(false);
+    const [statusUpdating, setStatusUpdating] = useState(false);
+    const evidenceFileInputRef = useRef(null);
 
-            const token = localStorage.getItem("token");
-            if (!token) {
-                navigate("/login");
-                return;
-            }
+    const fetchCaseData = async () => {
+        if (!id || id === ":id") {
+            setError("Invalid Case ID provided in the URL directory.");
+            setLoading(false);
+            return;
+        }
 
-            try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+            navigate("/login");
+            return;
+        }
+
+        try {
                 setLoading(true);
                 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
                 const response = await axios.get(`${API_BASE_URL}/api/cases/${id}`, {
@@ -189,8 +193,9 @@ export default function CaseDetails() {
             } finally {
                 setLoading(false);
             }
-        };
+    };
 
+    useEffect(() => {
         fetchCaseData();
     }, [id, navigate]);
 
@@ -232,7 +237,8 @@ export default function CaseDetails() {
         hash,
         status,
         activityLog,
-        createdAt
+        createdAt,
+        updatedAt
     } = caseData;
 
     const handleDeleteClick = () => {
@@ -277,6 +283,61 @@ export default function CaseDetails() {
         }
     };
 
+    const handleUploadEvidence = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            setUploading(true);
+            const token = localStorage.getItem("token");
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+            
+            const formData = new FormData();
+            formData.append("evidenceFile", file);
+
+            await axios.put(`${API_BASE_URL}/api/cases/${id}`, formData, {
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "multipart/form-data"
+                }
+            });
+            
+            setToastMessage({ text: "Cryptographic Evidence generated and sealed successfully.", type: "success" });
+            fetchCaseData();
+        } catch (err) {
+            console.error("Upload error:", err);
+            setToastMessage({ text: err.response?.data?.message || "Failed to seal evidence.", type: "error" });
+        } finally {
+            setUploading(false);
+            if (evidenceFileInputRef.current) {
+                evidenceFileInputRef.current.value = "";
+            }
+        }
+    };
+
+    const handleStatusChange = async (e) => {
+        const newStatus = e.target.value;
+        if (!newStatus || newStatus === status) return;
+        
+        try {
+            setStatusUpdating(true);
+            const token = localStorage.getItem("token");
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+            
+            await axios.put(`${API_BASE_URL}/api/cases/${id}`, { status: newStatus }, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            
+            setToastMessage({ text: `Case status reclassified to ${newStatus}`, type: "success" });
+            fetchCaseData();
+        } catch (err) {
+            console.error("Status update error:", err);
+            setToastMessage({ text: err.response?.data?.message || "Failed to reclassify status.", type: "error" });
+        } finally {
+            setStatusUpdating(false);
+        }
+    };
+
     return (
         <div className="min-h-screen w-full bg-[#0a0f1a] text-slate-100 overflow-x-hidden relative" style={{ fontFamily: "system-ui, sans-serif" }}>
             <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
@@ -310,17 +371,40 @@ export default function CaseDetails() {
                 {/* HEADER SECTION */}
                 <div className="mb-12" style={{ animation: "fadeSlideUp 0.6s ease 0.1s both" }}>
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-white/5">
-                        <div>
-                            <div className="flex items-center gap-3 mb-4">
-                                <HexBadge label={status || "Under Investigation"} color="teal" />
+                        <div className="flex-1 w-full max-w-2xl">
+                            <div className="flex items-center gap-3 mb-4 flex-wrap">
+                                <div className="relative group/status">
+                                    <HexBadge label={status || "Pending"} color="teal" />
+                                    
+                                    <select 
+                                        value={status || "Pending"} 
+                                        onChange={handleStatusChange}
+                                        disabled={statusUpdating}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-xs"
+                                        title="Shift case classification"
+                                    >
+                                        <option value="Pending">Pending</option>
+                                        <option value="Under Investigation">Under Investigation</option>
+                                        <option value="Verified">Verified</option>
+                                        <option value="Closed">Closed</option>
+                                    </select>
+                                    
+                                    {statusUpdating && (
+                                        <div className="absolute -top-1 -right-1 flex h-3 w-3">
+                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                                          <span className="relative inline-flex rounded-full h-3 w-3 bg-teal-500"></span>
+                                        </div>
+                                    )}
+                                </div>
                                 <span className="px-2 py-1 bg-white/5 border border-white/10 rounded text-xs font-mono text-slate-400">
                                     ID: {id}
                                 </span>
                             </div>
-                            <h1 className="text-4xl md:text-5xl font-black text-white leading-tight" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                            <h1 className="text-4xl md:text-5xl font-black text-white leading-tight break-words" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
                                 <GlitchText text={title} />
                             </h1>
                         </div>
+
 
                         <div className="md:text-right p-4 rounded-xl bg-black/40 border border-teal-500/20 shadow-[0_0_15px_rgba(20,210,160,0.05)]">
                             <div className="text-xs text-slate-500 font-bold tracking-widest mb-1 font-mono">ASSIGNED AGENT</div>
@@ -354,7 +438,7 @@ export default function CaseDetails() {
                                 <div className="h-px w-full bg-gradient-to-r from-white/10 to-transparent" />
                                 <div>
                                     <dt className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1 font-mono">Last Update</dt>
-                                    <dd className="text-sm text-slate-300 font-mono text-teal-400">Recently verified</dd>
+                                    <dd className="text-sm text-slate-300 font-mono text-teal-400">{updatedAt ? new Date(updatedAt).toLocaleString() : 'Recently verified'}</dd>
                                 </div>
                                 <div className="h-px w-full bg-gradient-to-r from-white/10 to-transparent" />
                                 <div>
@@ -440,7 +524,7 @@ export default function CaseDetails() {
 
                                             <div className="flex justify-between items-center text-xs">
                                                 <span className="text-slate-500 font-bold uppercase tracking-wider">Extraction Date</span>
-                                                <span className="text-slate-300">{new Date(createdAt).toLocaleString()}</span>
+                                                <span className="text-slate-300">{new Date(updatedAt || createdAt).toLocaleString()}</span>
                                             </div>
 
                                             <div className="h-px w-full bg-slate-800" />
@@ -453,12 +537,50 @@ export default function CaseDetails() {
                                             </div>
                                         </div>
 
+                                        <div className="mt-4 pt-4 border-t border-teal-500/10 text-center">
+                                            <input 
+                                                type="file" 
+                                                ref={evidenceFileInputRef} 
+                                                onChange={handleUploadEvidence} 
+                                                className="hidden" 
+                                            />
+                                            <button 
+                                                onClick={() => evidenceFileInputRef.current?.click()}
+                                                disabled={uploading}
+                                                className="px-4 py-2 bg-black/40 border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 text-xs font-mono font-bold rounded-lg transition-colors inline-flex items-center gap-2"
+                                            >
+                                                {uploading ? (
+                                                    <><span className="animate-spin text-lg">⏳</span> SYNCING TO LEDGER...</>
+                                                ) : (
+                                                    <>🔄 OVERWRITE & RE-SEAL EVIDENCE</>
+                                                )}
+                                            </button>
+                                        </div>
+
                                     </div>
                                 ) : (
-                                    <div className="p-12 flex flex-col items-center justify-center text-center border-2 border-dashed border-white/5 rounded-xl bg-black/20">
-                                        <div className="text-4xl opacity-40 mb-3 block">📭</div>
-                                        <h3 className="text-slate-300 font-bold font-mono tracking-widest text-sm mb-1">VAULT EMPTY</h3>
-                                        <p className="text-xs text-slate-500 font-mono">No cryptographic evidence objects located for this case.</p>
+                                    <div className="p-12 flex flex-col items-center justify-center text-center border-2 border-dashed border-teal-500/30 rounded-xl bg-teal-500/5 transition-colors hover:bg-teal-500/10 hover:border-teal-500/50 group/upload" onClick={() => evidenceFileInputRef.current?.click()}>
+                                        <input 
+                                            type="file" 
+                                            ref={evidenceFileInputRef} 
+                                            onChange={handleUploadEvidence} 
+                                            className="hidden" 
+                                        />
+                                        <div className={`text-4xl opacity-80 mb-4 block transition-transform ${uploading ? 'animate-bounce' : 'group-hover/upload:scale-110'}`}>
+                                            {uploading ? '⏳' : '📤'}
+                                        </div>
+                                        <h3 className="text-teal-400 font-bold font-mono tracking-widest text-sm mb-2">
+                                            {uploading ? "UPLOADING EVIDENCE..." : "VAULT EMPTY - UPLOAD EVIDENCE"}
+                                        </h3>
+                                        <p className="text-xs text-slate-500 font-mono mb-6 max-w-sm">
+                                            No cryptographic evidence objects located for this case. Click to securely seal a new file into the immutable ledger and compute SHA-256 hash.
+                                        </p>
+                                        <button 
+                                                disabled={uploading}
+                                                className="px-6 py-2.5 bg-teal-500 text-black hover:bg-teal-400 font-bold text-xs uppercase tracking-widest font-mono rounded-lg transition-transform hover:scale-105"
+                                            >
+                                                {uploading ? "ENCRYPTING..." : "SELECT FILE FORENSICS"}
+                                        </button>
                                     </div>
                                 )}
                             </div>

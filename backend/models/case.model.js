@@ -39,10 +39,11 @@ const caseSchema = new mongoose.Schema({
   hash: {
     type: String,
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+  activityLog: [{
+    type: String
+  }]
+}, {
+  timestamps: true
 });
 
 module.exports = mongoose.model("Case", caseSchema);
