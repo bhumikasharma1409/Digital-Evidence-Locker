@@ -1,7 +1,18 @@
 const Evidence = require("../models/evidence.model");
 const Case = require("../models/case.model");
+const CustodyLog = require("../models/custody.model");
 const crypto = require("crypto");
 const fs = require("fs");
+
+const logCustody = async (evidenceId, caseId, actionTitle, actorId, actorRole, details) => {
+    try {
+        await CustodyLog.create({
+            evidenceId, caseId, actionTitle, actorId, actorRole, details
+        });
+    } catch (err) {
+        console.error("Custody log tracking error:", err);
+    }
+};
 
 const generateHash = (filePath) => {
     try {
@@ -46,6 +57,7 @@ exports.uploadEvidence = async (req, res) => {
         });
 
         await pushAudit(caseId, `Evidence item [${req.file.originalname}] universally seeded by ${req.user.fullName}`);
+        await logCustody(evidence._id, caseId, "Uploaded Evidence", req.user._id, req.user.role, "Vault object initialized into system.");
 
         res.status(201).json({ success: true, data: evidence });
     } catch (error) {
@@ -62,7 +74,8 @@ exports.getEvidenceForCase = async (req, res) => {
             .populate("sharedWithLawyers", "fullName")
             .populate("policeRemarks.addedBy", "fullName")
             .populate("verifiedBy", "fullName")
-            .populate("rejectedBy", "fullName");
+            .populate("rejectedBy", "fullName")
+            .populate("accessRequests.requestedBy", "fullName role");
 
         // Filter based on roles
         const filtered = evidenceList.map(ev => {
@@ -108,6 +121,7 @@ exports.deleteEvidence = async (req, res) => {
             return res.status(400).json({ success: false, message: "Evidence is locked/verified and cannot be deleted" });
         }
 
+        await logCustody(evidence._id, evidence.caseId, "Deleted Evidence", req.user._id, req.user.role, "Evidence permanently destroyed.");
         await evidence.deleteOne();
         await pushAudit(evidence.caseId, `Evidence item [${evidence.originalName}] permanently destroyed`);
         res.status(200).json({ success: true, message: "Deleted" });
@@ -138,6 +152,7 @@ exports.shareEvidence = async (req, res) => {
         }
         await evidence.save();
         await pushAudit(evidence.caseId, `Evidence [${evidence.originalName}] shared with ${targetUser.fullName}`);
+        await logCustody(evidence._id, evidence.caseId, "Shared Access", req.user._id, req.user.role, `Shared securely with ${targetUser.fullName} (${targetUser.role})`);
         
         res.status(200).json({ success: true, data: evidence });
     } catch (error) {
@@ -157,6 +172,7 @@ exports.verifyEvidence = async (req, res) => {
         
         await evidence.save();
         await pushAudit(evidence.caseId, `Evidence [${evidence.originalName}] cryptographically VERIFIED`);
+        await logCustody(evidence._id, evidence.caseId, "Verified Evidence", req.user._id, req.user.role, "Cryptographic seal validated successfully.");
 
         res.status(200).json({ success: true, data: evidence });
     } catch (error) {
@@ -176,6 +192,7 @@ exports.rejectEvidence = async (req, res) => {
         
         await evidence.save();
         await pushAudit(evidence.caseId, `Evidence [${evidence.originalName}] natively REJECTED from ledger.`);
+        await logCustody(evidence._id, evidence.caseId, "Rejected Evidence", req.user._id, req.user.role, "Explicitly rejected verified alignment.");
 
         res.status(200).json({ success: true, data: evidence });
     } catch (error) {
@@ -194,6 +211,7 @@ exports.lockEvidence = async (req, res) => {
         
         await evidence.save();
         await pushAudit(evidence.caseId, `Evidence [${evidence.originalName}] forcibly LOCKED`);
+        await logCustody(evidence._id, evidence.caseId, "Locked Vault", req.user._id, req.user.role, "Sealed completely against edits.");
 
         res.status(200).json({ success: true, data: evidence });
     } catch (error) {
@@ -239,18 +257,95 @@ exports.addLawyerNotes = async (req, res) => {
 
 exports.requestAccess = async (req, res) => {
     try {
+        const { reason } = req.body;
         const evidence = await Evidence.findById(req.params.id);
         if (!evidence) return res.status(404).json({ success: false, message: "Not found" });
 
-        if (!evidence.accessRequests.includes(req.user._id)) {
-            evidence.accessRequests.push(req.user._id);
+        const existingRequest = evidence.accessRequests.find(r => r.requestedBy.toString() === req.user._id.toString() && r.status === "pending");
+        if (!existingRequest) {
+            evidence.accessRequests.push({
+                requestedBy: req.user._id,
+                requestedRole: req.user.role,
+                reason: reason || "No reason provided",
+                status: "pending"
+            });
             evidence.activityLog.push(`Access ping logged externally from ${req.user.fullName}`);
         }
         
         await evidence.save();
         await pushAudit(evidence.caseId, `Unauthorized request-ping recorded mapping towards [${evidence.originalName}]`);
+        await logCustody(evidence._id, evidence.caseId, "Requested Access", req.user._id, req.user.role, `Reason: ${reason || 'N/A'}`);
 
         res.status(200).json({ success: true, data: evidence });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+exports.approveAccessRequest = async (req, res) => {
+    try {
+        const evidence = await Evidence.findById(req.params.id);
+        if (!evidence) return res.status(404).json({ success: false, message: "Not found" });
+
+        // Only uploader, explicitly verified admin, or police can approve
+        if (evidence.uploadedBy.toString() !== req.user._id.toString() && !["admin", "police", "forensic"].includes(req.user.role)) {
+             return res.status(403).json({ success: false, message: "Unauthorized to approve" });
+        }
+
+        const request = evidence.accessRequests.id(req.params.requestId);
+        if (!request) return res.status(404).json({ success: false, message: "Request not found" });
+
+        request.status = "approved";
+        request.reviewedBy = req.user._id;
+        request.reviewedAt = Date.now();
+
+        if (request.requestedRole === "lawyer" && !evidence.sharedWithLawyers.includes(request.requestedBy)) {
+             evidence.sharedWithLawyers.push(request.requestedBy);
+        } else if (request.requestedRole === "police" && !evidence.sharedWithPolice.includes(request.requestedBy)) {
+             evidence.sharedWithPolice.push(request.requestedBy);
+        }
+
+        await evidence.save();
+        await logCustody(evidence._id, evidence.caseId, "Approved Access Request", req.user._id, req.user.role, `Approved access for ID: ${request.requestedBy}`);
+
+        res.status(200).json({ success: true, data: evidence });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+exports.rejectAccessRequest = async (req, res) => {
+    try {
+        const evidence = await Evidence.findById(req.params.id);
+        if (!evidence) return res.status(404).json({ success: false, message: "Not found" });
+
+        if (evidence.uploadedBy.toString() !== req.user._id.toString() && !["admin", "police", "forensic"].includes(req.user.role)) {
+             return res.status(403).json({ success: false, message: "Unauthorized to reject" });
+        }
+
+        const request = evidence.accessRequests.id(req.params.requestId);
+        if (!request) return res.status(404).json({ success: false, message: "Request not found" });
+
+        request.status = "rejected";
+        request.reviewedBy = req.user._id;
+        request.reviewedAt = Date.now();
+
+        await evidence.save();
+        await logCustody(evidence._id, evidence.caseId, "Rejected Access Request", req.user._id, req.user.role, `Rejected access for ID: ${request.requestedBy}`);
+
+        res.status(200).json({ success: true, data: evidence });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+exports.getCustodyLog = async (req, res) => {
+    try {
+        const custodyLogs = await CustodyLog.find({ evidenceId: req.params.id })
+            .populate("actorId", "fullName role")
+            .sort({ createdAt: -1 });
+        
+        res.status(200).json({ success: true, data: custodyLogs });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -269,6 +364,7 @@ exports.assignEvidence = async (req, res) => {
         await evidence.save();
         await pushAudit(oldCase, `Evidence [${evidence.originalName}] unlinked and reassigned external.`);
         await pushAudit(targetCaseId, `Evidence [${evidence.originalName}] officially accepted onto this node.`);
+        await logCustody(evidence._id, evidence.caseId, "Transferred Assignment", req.user._id, req.user.role, `Pushed from ${oldCase} to ${targetCaseId}.`);
 
         res.status(200).json({ success: true, data: evidence });
     } catch (error) {
@@ -300,6 +396,7 @@ exports.downloadEvidence = async (req, res) => {
         evidence.activityLog.push(`RAW BINARY FETCHED SECURELY by ${req.user.fullName}`);
         await evidence.save();
         await pushAudit(evidence.caseId, `Evidence source binary directly fetched by ${req.user.fullName}`);
+        await logCustody(evidence._id, evidence.caseId, "Downloaded Raw File", req.user._id, req.user.role, "Secured direct binary fetch request.");
 
         res.download(fullPath, evidence.originalName || "evidence.bin");
     } catch (error) {

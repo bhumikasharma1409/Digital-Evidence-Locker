@@ -14,6 +14,9 @@ const {
     addRemarks,
     addLawyerNotes,
     requestAccess,
+    approveAccessRequest,
+    rejectAccessRequest,
+    getCustodyLog,
     assignEvidence,
     downloadEvidence
 } = require("../controllers/evidenceController");
@@ -50,7 +53,14 @@ router.put("/:id/assign", protect, authorizeRoles("police", "forensic", "admin")
 
 // LAWYER MUTATIONS
 router.put("/:id/note", protect, authorizeRoles("lawyer"), addLawyerNotes);
-router.put("/:id/request-access", protect, authorizeRoles("lawyer"), requestAccess);
+router.post("/:id/request-access", protect, authorizeRoles("lawyer"), requestAccess); // Changed from PUT to POST to match nested creation logic conventionally
+
+// ACCESS REQUEST ADMINISTRATIONS
+router.put("/:id/access-requests/:requestId/approve", protect, authorizeRoles("admin", "police", "user"), approveAccessRequest);
+router.put("/:id/access-requests/:requestId/reject", protect, authorizeRoles("admin", "police", "user"), rejectAccessRequest);
+
+// CUSTODY FETCHER
+router.get("/:id/custody", protect, getCustodyLog);
 
 // SECURE DOWNLOAD
 router.get("/:id/download", protect, downloadEvidence);

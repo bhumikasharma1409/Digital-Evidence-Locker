@@ -7,8 +7,7 @@ const connectDB = require("./config/db");
 const caseRoutes = require("./routes/caseRoutes");
 const authRoutes = require("./routes/authRoutes");
 const evidenceRoutes = require("./routes/evidenceRoutes");
-
-
+const noteRoutes = require("./routes/noteRoutes");
 
 connectDB();
 
@@ -32,6 +31,7 @@ app.get("/", (req, res) => {
 app.use("/api/cases", caseRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/evidence", evidenceRoutes);
+app.use("/api/notes", noteRoutes);
 
 const PORT = process.env.PORT || 5001;
 

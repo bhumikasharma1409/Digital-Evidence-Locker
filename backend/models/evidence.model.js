@@ -53,7 +53,15 @@ const evidenceSchema = new mongoose.Schema(
             }
         ],
         accessRequests: [
-            { type: mongoose.Schema.Types.ObjectId, ref: "User" }
+            {
+                requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+                requestedRole: String,
+                reason: String,
+                status: { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
+                requestedAt: { type: Date, default: Date.now },
+                reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+                reviewedAt: Date
+            }
         ],
         verifiedBy: {
             type: mongoose.Schema.Types.ObjectId,
