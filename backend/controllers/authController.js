@@ -11,9 +11,9 @@ const generateToken = (id) => {
 
 const registerUser = async (req, res) => {
     try {
-        const { fullName, email, password } = req.body;
+        const { fullName, email, password, locality, district, state, role } = req.body;
 
-        if (!fullName || !email || !password) {
+        if (!fullName || !email || !password || !locality || !district || !state) {
             return res.status(400).json({ success: false, message: "Please provide all fields" });
         }
 
@@ -29,6 +29,10 @@ const registerUser = async (req, res) => {
             fullName,
             email,
             password,
+            locality: locality.trim().toLowerCase(),
+            district: district.trim().toLowerCase(),
+            state: state.trim().toLowerCase(),
+            role: role || "user",
         });
 
         if (user) {
@@ -85,6 +89,9 @@ const getUserProfile = async (req, res) => {
                 fullName: user.fullName,
                 email: user.email,
                 role: user.role,
+                locality: user.locality,
+                district: user.district,
+                state: user.state,
             });
         } else {
             res.status(404).json({ success: false, message: "User not found" });
@@ -94,8 +101,57 @@ const getUserProfile = async (req, res) => {
     }
 };
 
+const updateUserProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+
+        if (user) {
+            user.fullName = req.body.fullName || user.fullName;
+            
+            if (req.body.locality !== undefined) {
+                user.locality = req.body.locality.trim().toLowerCase();
+            }
+            if (req.body.district !== undefined) {
+                user.district = req.body.district.trim().toLowerCase();
+            }
+            if (req.body.state !== undefined) {
+                user.state = req.body.state.trim().toLowerCase();
+            }
+
+            const updatedUser = await user.save();
+
+            res.json({
+                success: true,
+                _id: updatedUser._id,
+                fullName: updatedUser.fullName,
+                email: updatedUser.email,
+                role: updatedUser.role,
+                locality: updatedUser.locality,
+                district: updatedUser.district,
+                state: updatedUser.state,
+            });
+        } else {
+            res.status(404).json({ success: false, message: "User not found" });
+        }
+    } catch (error) {
+        console.error("Update Profile Error:", error);
+        res.status(500).json({ success: false, message: "Server error updating profile", error: error.message });
+    }
+};
+
+const getLawyers = async (req, res) => {
+    try {
+        const lawyers = await User.find({ role: "lawyer" }).select("fullName _id district state");
+        res.json({ success: true, data: lawyers });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Server error fetching lawyers", error: error.message });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
     getUserProfile,
+    updateUserProfile,
+    getLawyers,
 };

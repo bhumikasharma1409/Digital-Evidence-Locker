@@ -21,17 +21,29 @@ const userSchema = new mongoose.Schema(
         },
         role: {
             type: String,
-            enum: ["user", "admin", "agent"],
+            enum: ["user", "admin", "agent", "police", "lawyer", "forensic"],
             default: "user",
+        },
+        locality: {
+            type: String,
+            required: [true, "Please provide a locality"],
+        },
+        district: {
+            type: String,
+            required: [true, "Please provide a district"],
+        },
+        state: {
+            type: String,
+            required: [true, "Please provide a state"],
         },
     },
     { timestamps: true }
 );
 
 
-userSchema.pre("save", async function (next) {
+userSchema.pre("save", async function () {
     if (!this.isModified("password")) {
-        next();
+        return;
     }
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);

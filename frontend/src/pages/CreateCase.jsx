@@ -64,14 +64,32 @@ export default function CreateCase() {
         const token = localStorage.getItem("token");
         if (!token) {
             navigate("/login");
+        } else {
+            fetchLawyers(token);
         }
     }, [navigate]);
+
+    const fetchLawyers = async (token) => {
+        try {
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+            const response = await axios.get(`${API_BASE_URL}/api/auth/lawyers`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (response.data.success) {
+                setLawyers(response.data.data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch lawyers", error);
+        }
+    };
 
     const [formData, setFormData] = useState({
         title: "",
         category: "Phishing",
         description: "",
+        assignedLawyer: "",
     });
+    const [lawyers, setLawyers] = useState([]);
     const [evidenceFile, setEvidenceFile] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -94,8 +112,8 @@ export default function CreateCase() {
         setError("");
         setSuccess("");
 
-        if (!formData.title || !formData.category || !formData.description) {
-            setError("PROTOCOL_ERROR: missing required fields.");
+        if (!formData.title || !formData.category || !formData.description || !formData.assignedLawyer) {
+            setError("PROTOCOL_ERROR: missing required fields, including assigned lawyer.");
             setLoading(false);
             return;
         }
@@ -111,6 +129,7 @@ export default function CreateCase() {
             data.append("title", formData.title);
             data.append("category", formData.category);
             data.append("description", formData.description);
+            data.append("assignedLawyer", formData.assignedLawyer);
             if (evidenceFile) {
                 data.append("evidenceFile", evidenceFile);
             }
@@ -251,6 +270,36 @@ export default function CreateCase() {
                                         <option className="bg-[#0b1220] text-white" value="Unauthorized Access">Unauthorized Access</option>
                                         <option className="bg-[#0b1220] text-white" value="Fraud">Fraud</option>
                                         <option className="bg-[#0b1220] text-white" value="Other">Other</option>
+                                    </select>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-teal-500">
+                                        <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                                            <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Assigned Lawyer */}
+                            <div>
+                                <label htmlFor="assignedLawyer" className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                                    Assign Legal Counsel (Lawyer) <span className="text-teal-400">*</span>
+                                </label>
+                                <div className="relative">
+                                    <select
+                                        id="assignedLawyer"
+                                        name="assignedLawyer"
+                                        value={formData.assignedLawyer}
+                                        onChange={handleInputChange}
+                                        className="w-full px-4 py-3 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-teal-400/50 transition-all appearance-none cursor-pointer"
+                                        style={{ background: "rgba(0,0,0,0.6)", border: "1px solid rgba(20,210,160,0.2)", fontFamily: "'Share Tech Mono', monospace" }}
+                                        required
+                                    >
+                                        <option className="bg-[#0b1220] text-slate-500" value="" disabled>Select Legal Counsel</option>
+                                        {lawyers.map(lawyer => (
+                                            <option key={lawyer._id} className="bg-[#0b1220] text-white" value={lawyer._id}>
+                                                {lawyer.fullName} ({lawyer.district}, {lawyer.state})
+                                            </option>
+                                        ))}
                                     </select>
                                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-teal-500">
                                         <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">

@@ -104,8 +104,10 @@ function TypedText({ phrases }) {
         } else if (deleting && displayed.length > 0) {
             timeout = setTimeout(() => setDisplayed(displayed.slice(0, -1)), 35);
         } else if (deleting && displayed.length === 0) {
-            setDeleting(false);
-            setIdx((idx + 1) % phrases.length);
+            timeout = setTimeout(() => {
+                setDeleting(false);
+                setIdx((idx + 1) % phrases.length);
+            }, 35);
         }
         return () => clearTimeout(timeout);
     }, [displayed, deleting, idx, phrases]);
@@ -248,7 +250,6 @@ function TerminalLog({ lines }) {
 
 export default function LandingPage() {
     const navigate = useNavigate();
-    const [menuOpen, setMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
 
     useEffect(() => {

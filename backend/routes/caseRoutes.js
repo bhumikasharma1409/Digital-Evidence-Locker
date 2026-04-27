@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const path = require("path");
-const { protect } = require("../middleware/authMiddleware");
+const { protect, requirePolice, requireAssignedPolice } = require("../middleware/authMiddleware");
 
 
 const storage = multer.diskStorage({
@@ -27,8 +27,11 @@ const upload = multer({
     }
 });
 
-const { createCase, getCases, getCaseById, getUserCases, uploadEvidence, deleteCase } = require("../controllers/caseController");
+const { createCase, getCases, getCaseById, getUserCases, uploadEvidence, deleteCase, getCookies, assignPolice, updateStatus, addNote, verifyCase } = require("../controllers/caseController");
+const { protect, requirePolice, requireAssignedPolice } = require("../middleware/authMiddleware");
 
+
+router.get('/cookies', getCookies);
 
 router.post("/upload-evidence", protect, upload.single("evidenceFile"), uploadEvidence);
 
@@ -44,6 +47,11 @@ router
     .get(protect, getCaseById)
     .delete(protect, deleteCase);
 
+router.patch("/:id/assign-police", protect, requirePolice, assignPolice);
+
+router.patch("/:id/status", protect, requireAssignedPolice, updateStatus);
+router.post("/:id/notes", protect, requireAssignedPolice, addNote);
+router.patch("/:id/verify", protect, requireAssignedPolice, verifyCase);
 
 router.get("/user/:userId", protect, getUserCases);
 

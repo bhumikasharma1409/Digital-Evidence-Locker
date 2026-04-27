@@ -103,9 +103,8 @@ function GlitchText({ text }) {
 // Evidence File Renderer helper
 const renderEvidenceFile = (filePath) => {
     if (!filePath) return null;
-    const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
-    const SERVER_URL = `${API_BASE_URL}/`;
-    const fullUrl = filePath.startsWith("http") ? filePath : SERVER_URL + filePath.replace(/\\/g, '/');
+    const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:5001").replace(/\/+$/, "");
+    const fullUrl = filePath.startsWith("http") ? filePath : `${API_BASE_URL}/${filePath.replace(/\\/g, '/').replace(/^\/+/, "")}`;
     const ext = fullUrl.split('.').pop().toLowerCase();
 
     if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) {
@@ -147,10 +146,14 @@ export default function CaseDetails() {
     const [caseData, setCaseData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [userProfile, setUserProfile] = useState(null);
 
     // Custom UI states
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [toastMessage, setToastMessage] = useState(null);
+    const [newNote, setNewNote] = useState("");
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+    const [isVerifying, setIsVerifying] = useState(false);
 
     useEffect(() => {
         const fetchCaseData = async () => {
@@ -169,6 +172,17 @@ export default function CaseDetails() {
             try {
                 setLoading(true);
                 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+                
+                // Fetch Profile
+                try {
+                    const profileRes = await axios.get(`${API_BASE_URL}/api/auth/profile`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    setUserProfile(profileRes.data);
+                } catch (profErr) {
+                    console.error("Failed to fetch user profile", profErr);
+                }
+
                 const response = await axios.get(`${API_BASE_URL}/api/cases/${id}`, {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -277,8 +291,76 @@ export default function CaseDetails() {
         }
     };
 
+    const handleUpdateStatus = async (newStatus) => {
+        setIsUpdatingStatus(true);
+        try {
+            const token = localStorage.getItem("token");
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+            const res = await axios.patch(`${API_BASE_URL}/api/cases/${id}/status`, { status: newStatus }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.data.success) {
+                setCaseData(prev => ({ ...prev, status: res.data.data.status }));
+                setToastMessage({ text: "Status updated successfully", type: "success" });
+            }
+        } catch (err) {
+            setToastMessage({ text: err.response?.data?.message || "Failed to update status", type: "error" });
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
+
+    const handleAddNote = async () => {
+        if (!newNote.trim()) return;
+        try {
+            const token = localStorage.getItem("token");
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+            const res = await axios.post(`${API_BASE_URL}/api/cases/${id}/notes`, { text: newNote }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.data.success) {
+                setCaseData(prev => ({
+                    ...prev,
+                    notes: [...(prev.notes || []), res.data.data]
+                }));
+                setNewNote("");
+                setToastMessage({ text: "Note added successfully", type: "success" });
+            }
+        } catch (err) {
+            setToastMessage({ text: err.response?.data?.message || "Failed to add note", type: "error" });
+        }
+    };
+
+    const handleVerifyCase = async () => {
+        setIsVerifying(true);
+        try {
+            const token = localStorage.getItem("token");
+            const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:5001").replace(/\/+$/, "");
+            const res = await axios.patch(`${API_BASE_URL}/api/cases/${id}/verify`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.data.success) {
+                setCaseData(prev => ({ 
+                    ...prev, 
+                    isVerified: res.data.data.isVerified,
+                    verifiedBy: res.data.data.verifiedBy,
+                    verifiedAt: res.data.data.verifiedAt
+                }));
+                setToastMessage({ text: "Case verified successfully", type: "success" });
+            }
+        } catch (err) {
+            setToastMessage({ text: err.response?.data?.message || "Failed to verify case", type: "error" });
+        } finally {
+            setIsVerifying(false);
+        }
+    };
+
+    const isAssignedPolice = userProfile?.role === "police" && caseData?.assignedPolice?._id === userProfile?._id;
+    const canViewNotes = userProfile?.role === "police" || userProfile?.role === "lawyer";
+    const canDelete = userProfile?.role === "admin" || caseData?.createdBy?._id === userProfile?._id;
+
     return (
-        <div className="min-h-screen w-full bg-[#0a0f1a] text-slate-100 overflow-x-hidden relative" style={{ fontFamily: "system-ui, sans-serif" }}>
+        <div className="min-h-screen w-full bg-[#0a0f1a] text-slate-100 overflow-x-hidden relative flex flex-col pb-32" style={{ fontFamily: "system-ui, sans-serif" }}>
             <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
             <style>{`
               @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -302,9 +384,11 @@ export default function CaseDetails() {
                         <span>←</span> BACK TO DIRECTORY
                     </button>
 
-                    <button onClick={handleDeleteClick} className="flex items-center gap-2 px-4 py-2 border border-red-500/30 text-red-500 bg-red-500/10 hover:bg-red-500/20 rounded-lg text-xs font-bold font-mono transition-colors">
-                        <span>🗑️ DELETE RECORD</span>
-                    </button>
+                    {canDelete && (
+                        <button onClick={handleDeleteClick} className="flex items-center gap-2 px-4 py-2 border border-red-500/30 text-red-500 bg-red-500/10 hover:bg-red-500/20 rounded-lg text-xs font-bold font-mono transition-colors">
+                            <span>🗑️ DELETE RECORD</span>
+                        </button>
+                    )}
                 </div>
 
                 {/* HEADER SECTION */}
@@ -312,7 +396,22 @@ export default function CaseDetails() {
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-white/5">
                         <div>
                             <div className="flex items-center gap-3 mb-4">
-                                <HexBadge label={status || "Under Investigation"} color="teal" />
+                                {isAssignedPolice ? (
+                                    <select
+                                        value={status || "Pending"}
+                                        onChange={(e) => handleUpdateStatus(e.target.value)}
+                                        disabled={isUpdatingStatus}
+                                        className="bg-black/40 border border-teal-500/40 text-teal-400 text-xs font-bold font-mono uppercase tracking-widest rounded-lg px-3 py-1 focus:outline-none focus:ring-1 focus:ring-teal-400 cursor-pointer appearance-none"
+                                        style={{ outline: "none" }}
+                                    >
+                                        <option className="bg-[#0b1220] text-white" value="Pending">Pending</option>
+                                        <option className="bg-[#0b1220] text-white" value="Under Investigation">Under Investigation</option>
+                                        <option className="bg-[#0b1220] text-white" value="Evidence Review">Evidence Review</option>
+                                        <option className="bg-[#0b1220] text-white" value="CLOSED">CLOSED</option>
+                                    </select>
+                                ) : (
+                                    <HexBadge label={status || "Under Investigation"} color="teal" />
+                                )}
                                 <span className="px-2 py-1 bg-white/5 border border-white/10 rounded text-xs font-mono text-slate-400">
                                     ID: {id}
                                 </span>
@@ -322,13 +421,20 @@ export default function CaseDetails() {
                             </h1>
                         </div>
 
-                        <div className="md:text-right p-4 rounded-xl bg-black/40 border border-teal-500/20 shadow-[0_0_15px_rgba(20,210,160,0.05)]">
-                            <div className="text-xs text-slate-500 font-bold tracking-widest mb-1 font-mono">ASSIGNED AGENT</div>
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-teal-400 text-xs">
-                                    👁️
+                        <div className="flex flex-col gap-3 md:items-end">
+                            <div className="md:text-right p-4 rounded-xl bg-black/40 border border-blue-500/20 min-w-[200px]">
+                                <div className="text-xs text-blue-400 font-bold tracking-widest mb-1 font-mono uppercase">Investigating Officer</div>
+                                <div className="text-sm text-slate-200 font-mono flex items-center md:justify-end gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                                    {caseData.assignedPolice?.fullName || "Unassigned"}
                                 </div>
-                                <div className="text-sm text-slate-200 font-mono">Agent-X7 (Automated)</div>
+                            </div>
+                            <div className="md:text-right p-4 rounded-xl bg-black/40 border border-purple-500/20 min-w-[200px]">
+                                <div className="text-xs text-purple-400 font-bold tracking-widest mb-1 font-mono uppercase">Legal Counsel</div>
+                                <div className="text-sm text-slate-200 font-mono flex items-center md:justify-end gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-purple-400"></span>
+                                    {caseData.assignedLawyer?.fullName || "Unknown"}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -362,6 +468,31 @@ export default function CaseDetails() {
                                     <dd className="text-sm font-bold text-slate-300 font-mono">{category}</dd>
                                 </div>
                             </dl>
+
+                            <div className="mt-8 pt-6 border-t border-white/5">
+                                {caseData.isVerified ? (
+                                    <div className="p-4 rounded-lg border border-green-500/30 bg-green-500/10 flex flex-col gap-2">
+                                        <div className="flex items-center gap-2 text-green-400 font-bold tracking-widest text-xs uppercase font-mono">
+                                            <span>✅</span> Verified by Police
+                                        </div>
+                                        <div className="text-[10px] text-green-500/80 font-mono">
+                                            By: {caseData.verifiedBy?.fullName || "Officer"}
+                                            <br/>
+                                            On: {new Date(caseData.verifiedAt).toLocaleString()}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    isAssignedPolice && (
+                                        <button
+                                            onClick={handleVerifyCase}
+                                            disabled={isVerifying}
+                                            className="w-full py-3 rounded-lg border border-teal-500/50 bg-teal-500/10 text-teal-400 font-bold text-sm tracking-widest uppercase hover:bg-teal-500/20 transition-all font-mono shadow-[0_0_15px_rgba(20,210,160,0.15)] disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {isVerifying ? "Verifying..." : "Verify Case"}
+                                        </button>
+                                    )
+                                )}
+                            </div>
                         </div>
 
                         {/* Activity Log Section */}
@@ -389,6 +520,49 @@ export default function CaseDetails() {
                                 )}
                             </div>
                         </div>
+
+                        {/* Internal Notes Section */}
+                        {canViewNotes && (
+                            <div className="p-6 rounded-2xl bg-black/40 border border-purple-500/20 backdrop-blur-md relative overflow-hidden" style={{ animation: "fadeSlideUp 0.6s ease 0.4s both" }}>
+                                <div className="flex items-center gap-2 mb-6 text-purple-400 text-xs font-bold uppercase tracking-[0.2em] font-mono border-b border-purple-500/10 pb-3 relative z-10">
+                                    <span>🔒</span>
+                                    <span>Internal Notes</span>
+                                </div>
+                                <div className="space-y-4 mb-4 relative z-10 max-h-60 overflow-y-auto pr-2">
+                                    {caseData.notes && caseData.notes.length > 0 ? (
+                                        caseData.notes.map((note, idx) => (
+                                            <div key={idx} className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <span className="text-[10px] text-purple-400 font-bold tracking-widest uppercase">{note.author?.fullName || "Agent"}</span>
+                                                    <span className="text-[10px] text-slate-500">{new Date(note.createdAt).toLocaleString()}</span>
+                                                </div>
+                                                <p className="text-sm text-slate-300 font-mono">{note.text}</p>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-xs text-slate-500 font-mono italic">No internal notes added yet.</div>
+                                    )}
+                                </div>
+                                {isAssignedPolice && (
+                                    <div className="relative z-10 border-t border-purple-500/10 pt-4 mt-4">
+                                        <textarea
+                                            value={newNote}
+                                            onChange={(e) => setNewNote(e.target.value)}
+                                            placeholder="Add an internal note..."
+                                            className="w-full bg-black/60 border border-purple-500/30 rounded-lg p-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 mb-3 resize-none font-mono"
+                                            rows="3"
+                                        />
+                                        <button 
+                                            onClick={handleAddNote}
+                                            disabled={!newNote.trim()}
+                                            className="w-full py-2 bg-purple-500/20 text-purple-400 border border-purple-500/40 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-purple-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            Submit Note
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                     </div>
 

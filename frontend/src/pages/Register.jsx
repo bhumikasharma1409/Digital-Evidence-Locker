@@ -40,7 +40,11 @@ export default function Register() {
         fullName: "",
         email: "",
         password: "",
-        confirmPassword: ""
+        confirmPassword: "",
+        locality: "",
+        district: "",
+        state: "",
+        role: "user"
     });
 
     const [errors, setErrors] = useState({});
@@ -59,6 +63,9 @@ export default function Register() {
     const validateForm = () => {
         const newErrors = {};
         if (!formData.fullName.trim()) newErrors.fullName = "Full Name is required";
+        if (!formData.locality.trim()) newErrors.locality = "Locality is required";
+        if (!formData.district.trim()) newErrors.district = "District is required";
+        if (!formData.state.trim()) newErrors.state = "State is required";
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!formData.email) {
@@ -98,7 +105,11 @@ export default function Register() {
                 body: JSON.stringify({
                     fullName: formData.fullName,
                     email: formData.email,
-                    password: formData.password
+                    password: formData.password,
+                    locality: formData.locality,
+                    district: formData.district,
+                    state: formData.state,
+                    role: formData.role
                 }),
             });
 
@@ -208,6 +219,75 @@ export default function Register() {
                             style={{ background: "rgba(0,0,0,0.4)", border: `1px solid ${errors.email ? 'rgba(239,68,68,0.5)' : 'rgba(20,210,160,0.3)'}`, color: "#14d2a0", fontFamily: "'Share Tech Mono', monospace" }}
                         />
                         {errors.email && <p className="mt-1 text-xs text-red-400">{errors.email}</p>}
+                    </div>
+
+                    {/* Locality Field */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 tracking-widest mb-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                            LOCALITY
+                        </label>
+                        <input
+                            type="text"
+                            name="locality"
+                            value={formData.locality}
+                            onChange={handleChange}
+                            placeholder="e.g. Connaught Place"
+                            className={`w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition-all placeholder:text-slate-600 focus:ring-1 capitalize ${errors.locality ? "border-red-500/50 focus:ring-red-500/50" : "border-teal-500/30 focus:ring-teal-400/50"}`}
+                            style={{ background: "rgba(0,0,0,0.4)", border: `1px solid ${errors.locality ? 'rgba(239,68,68,0.5)' : 'rgba(20,210,160,0.3)'}`, color: "#14d2a0", fontFamily: "'Share Tech Mono', monospace" }}
+                        />
+                        {errors.locality && <p className="mt-1 text-xs text-red-400">{errors.locality}</p>}
+                    </div>
+
+                    {/* District & State Row */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 tracking-widest mb-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                                DISTRICT
+                            </label>
+                            <input
+                                type="text"
+                                name="district"
+                                value={formData.district}
+                                onChange={handleChange}
+                                placeholder="e.g. New Delhi"
+                                className={`w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition-all placeholder:text-slate-600 focus:ring-1 capitalize ${errors.district ? "border-red-500/50 focus:ring-red-500/50" : "border-teal-500/30 focus:ring-teal-400/50"}`}
+                                style={{ background: "rgba(0,0,0,0.4)", border: `1px solid ${errors.district ? 'rgba(239,68,68,0.5)' : 'rgba(20,210,160,0.3)'}`, color: "#14d2a0", fontFamily: "'Share Tech Mono', monospace" }}
+                            />
+                            {errors.district && <p className="mt-1 text-xs text-red-400">{errors.district}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 tracking-widest mb-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                                STATE / REGION
+                            </label>
+                            <input
+                                type="text"
+                                name="state"
+                                value={formData.state}
+                                onChange={handleChange}
+                                placeholder="e.g. Delhi"
+                                className={`w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition-all placeholder:text-slate-600 focus:ring-1 capitalize ${errors.state ? "border-red-500/50 focus:ring-red-500/50" : "border-teal-500/30 focus:ring-teal-400/50"}`}
+                                style={{ background: "rgba(0,0,0,0.4)", border: `1px solid ${errors.state ? 'rgba(239,68,68,0.5)' : 'rgba(20,210,160,0.3)'}`, color: "#14d2a0", fontFamily: "'Share Tech Mono', monospace" }}
+                            />
+                            {errors.state && <p className="mt-1 text-xs text-red-400">{errors.state}</p>}
+                        </div>
+                    </div>
+
+                    {/* Role Field */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 tracking-widest mb-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                            ACCOUNT CLEARANCE LEVEL
+                        </label>
+                        <select
+                            name="role"
+                            value={formData.role}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition-all placeholder:text-slate-600 focus:ring-1 border-teal-500/30 focus:ring-teal-400/50 appearance-none cursor-pointer"
+                            style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(20,210,160,0.3)", color: "#14d2a0", fontFamily: "'Share Tech Mono', monospace" }}
+                        >
+                            <option className="bg-[#0b1220] text-white" value="user">Standard User</option>
+                            <option className="bg-[#0b1220] text-white" value="police">Police Officer</option>
+                            <option className="bg-[#0b1220] text-white" value="lawyer">Legal Counsel</option>
+                        </select>
                     </div>
 
                     {/* Password Field */}

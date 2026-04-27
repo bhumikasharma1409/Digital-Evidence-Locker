@@ -40,6 +40,15 @@ export default function Profile() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    const [isEditing, setIsEditing] = useState(false);
+    const [updateLoading, setUpdateLoading] = useState(false);
+    const [formData, setFormData] = useState({
+        fullName: "",
+        locality: "",
+        district: "",
+        state: ""
+    });
+
     useEffect(() => {
         const fetchProfile = async () => {
             try {
@@ -72,6 +81,12 @@ export default function Profile() {
 
                 if (data.success) {
                     setUser(data);
+                    setFormData({
+                        fullName: data.fullName || "",
+                        locality: data.locality || "",
+                        district: data.district || "",
+                        state: data.state || ""
+                    });
                 } else {
                     throw new Error(data.message || "Failed to load user profile");
                 }
@@ -96,6 +111,41 @@ export default function Profile() {
     const handleLogout = () => {
         localStorage.removeItem("token");
         navigate("/");
+    };
+
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleUpdateProfile = async () => {
+        setUpdateLoading(true);
+        setError(null);
+        try {
+            const token = localStorage.getItem("token");
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+            
+            const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
+                method: "PUT",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                setUser(data);
+                setIsEditing(false);
+            } else {
+                setError(data.message || "Failed to update profile.");
+            }
+        } catch (err) {
+            console.error("Update error:", err);
+            setError("Network error. Could not save changes.");
+        } finally {
+            setUpdateLoading(false);
+        }
     };
 
     if (loading) {
@@ -157,13 +207,30 @@ export default function Profile() {
                         <span>←</span> BACK TO TERMINAL
                     </button>
 
-                    <button
-                        onClick={handleLogout}
-                        className="px-4 py-2 rounded-lg border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors text-xs font-bold tracking-widest uppercase"
-                        style={{ fontFamily: "'Share Tech Mono', monospace" }}
-                    >
-                        DISCONNECT LOGIC
-                    </button>
+                    <div className="flex gap-4">
+                        <button
+                            onClick={() => {
+                                if (isEditing) {
+                                    handleUpdateProfile();
+                                } else {
+                                    setIsEditing(true);
+                                }
+                            }}
+                            disabled={updateLoading}
+                            className={`px-4 py-2 rounded-lg border ${isEditing ? 'border-teal-500/30 text-teal-400 hover:bg-teal-500/10' : 'border-blue-500/30 text-blue-400 hover:bg-blue-500/10'} transition-colors text-xs font-bold tracking-widest uppercase`}
+                            style={{ fontFamily: "'Share Tech Mono', monospace" }}
+                        >
+                            {updateLoading ? "SAVING..." : isEditing ? "SAVE CHANGES" : "EDIT PROFILE"}
+                        </button>
+
+                        <button
+                            onClick={handleLogout}
+                            className="px-4 py-2 rounded-lg border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors text-xs font-bold tracking-widest uppercase"
+                            style={{ fontFamily: "'Share Tech Mono', monospace" }}
+                        >
+                            DISCONNECT LOGIC
+                        </button>
+                    </div>
                 </div>
 
                 {/* Profile Card */}
@@ -187,9 +254,20 @@ export default function Profile() {
                         ── AUTHORIZED PERSONNEL ──
                     </div>
 
-                    <h1 className="text-4xl font-black text-white mb-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
-                        {displayUser.fullName}
-                    </h1>
+                    {isEditing ? (
+                        <input
+                            type="text"
+                            name="fullName"
+                            value={formData.fullName}
+                            onChange={handleChange}
+                            className="text-3xl font-black text-white text-center bg-black/40 border border-teal-500/40 rounded-xl px-4 py-2 mb-2 focus:outline-none focus:border-teal-400"
+                            style={{ fontFamily: "'Share Tech Mono', monospace" }}
+                        />
+                    ) : (
+                        <h1 className="text-4xl font-black text-white mb-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                            {displayUser.fullName}
+                        </h1>
+                    )}
 
                     <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-teal-500/30 bg-teal-500/10 text-teal-400 text-xs font-bold tracking-widest uppercase mb-8">
                         <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
@@ -205,6 +283,33 @@ export default function Profile() {
                         <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-left">
                             <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1" style={{ fontFamily: "'Share Tech Mono', monospace" }}>AGENT IDENTIFIER ID</div>
                             <div className="text-sm text-slate-200" style={{ fontFamily: "monospace" }}>{displayUser._id || "AWAITING_GEN"}</div>
+                        </div>
+                        
+                        <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-left md:col-span-2">
+                            <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1" style={{ fontFamily: "'Share Tech Mono', monospace" }}>LOCATION DATA</div>
+                            
+                            {isEditing ? (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+                                    <div>
+                                        <label className="text-[10px] text-teal-400 font-bold uppercase tracking-widest">Locality</label>
+                                        <input type="text" name="locality" value={formData.locality} onChange={handleChange} className="w-full mt-1 bg-black/40 border border-teal-500/30 text-white rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-400 capitalize" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-teal-400 font-bold uppercase tracking-widest">District</label>
+                                        <input type="text" name="district" value={formData.district} onChange={handleChange} className="w-full mt-1 bg-black/40 border border-teal-500/30 text-white rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-400 capitalize" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-teal-400 font-bold uppercase tracking-widest">State / Region</label>
+                                        <input type="text" name="state" value={formData.state} onChange={handleChange} className="w-full mt-1 bg-black/40 border border-teal-500/30 text-white rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-400 capitalize" />
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-wrap gap-4 mt-2">
+                                    <div className="text-sm text-slate-300 capitalize"><span className="text-slate-500 font-mono text-xs mr-1">Locality:</span> {displayUser.locality || "UNSPECIFIED"}</div>
+                                    <div className="text-sm text-slate-300 capitalize"><span className="text-slate-500 font-mono text-xs mr-1">District:</span> {displayUser.district || "UNSPECIFIED"}</div>
+                                    <div className="text-sm text-slate-300 capitalize"><span className="text-slate-500 font-mono text-xs mr-1">State:</span> {displayUser.state || "UNSPECIFIED"}</div>
+                                </div>
+                            )}
                         </div>
                     </div>
 

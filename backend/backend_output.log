@@ -1,0 +1,11 @@
+┆ no encoding is specified (UTF-8 is used by default)
+◇ injected env (2) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+Server running on port 5001
+MongoDB Atlas Connected 
+Received addNote request: { text: 'Test note from script 2' } 69ef03731191d85f4976d4a9 new ObjectId('69ef020b1191d85f4976d476')
+(node:6874) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Received addNote request: { text: 'jnvesdnkv' } 69ef03731191d85f4976d4a9 new ObjectId('69ef020b1191d85f4976d476')
+(node:6874) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+Received addNote request: { text: 'm. ' } 69ef03731191d85f4976d4a9 new ObjectId('69ef020b1191d85f4976d476')
+(node:6874) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
