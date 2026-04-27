@@ -18,7 +18,8 @@ const {
     rejectAccessRequest,
     getCustodyLog,
     assignEvidence,
-    downloadEvidence
+    downloadEvidence,
+    getEvidenceByLocality
 } = require("../controllers/evidenceController");
 
 // Configure multer for file uploads
@@ -37,6 +38,9 @@ router.post("/", protect, authorizeRoles("user", "admin", "police", "forensic"),
 
 // FETCH EVIDENCE FOR CASE
 router.get("/case/:caseId", protect, getEvidenceForCase);
+
+// FETCH EVIDENCE BY LOCALITY
+router.get("/locality", protect, authorizeRoles("police", "lawyer", "admin"), getEvidenceByLocality);
 
 // MODIFY EXISTING EVIDENCE (DELETE)
 router.delete("/:id", protect, authorizeRoles("user", "admin"), deleteEvidence);

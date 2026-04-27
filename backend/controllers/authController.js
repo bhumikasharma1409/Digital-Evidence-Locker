@@ -11,7 +11,7 @@ const generateToken = (id) => {
 
 const registerUser = async (req, res) => {
     try {
-        const { fullName, email, password } = req.body;
+        const { fullName, email, password, state, district, locality, pincode, policeStationArea } = req.body;
 
         if (!fullName || !email || !password) {
             return res.status(400).json({ success: false, message: "Please provide all fields" });
@@ -29,7 +29,12 @@ const registerUser = async (req, res) => {
             fullName,
             email,
             password,
-            role: req.body.role || 'user' // allow role strictly for initial setup/testing
+            role: req.body.role || 'user', // allow role strictly for initial setup/testing
+            state,
+            district,
+            locality,
+            pincode,
+            policeStationArea
         });
 
         if (user) {
@@ -39,6 +44,11 @@ const registerUser = async (req, res) => {
                 fullName: user.fullName,
                 email: user.email,
                 role: user.role,
+                state: user.state,
+                district: user.district,
+                locality: user.locality,
+                pincode: user.pincode,
+                policeStationArea: user.policeStationArea,
                 token: generateToken(user._id),
             });
         } else {
@@ -64,6 +74,11 @@ const loginUser = async (req, res) => {
                 fullName: user.fullName,
                 email: user.email,
                 role: user.role, // Return the role to the frontend
+                state: user.state,
+                district: user.district,
+                locality: user.locality,
+                pincode: user.pincode,
+                policeStationArea: user.policeStationArea,
                 token: generateToken(user._id),
             });
         } else {
@@ -88,6 +103,11 @@ const getUserProfile = async (req, res) => {
                 fullName: user.fullName,
                 email: user.email,
                 role: user.role,
+                state: user.state,
+                district: user.district,
+                locality: user.locality,
+                pincode: user.pincode,
+                policeStationArea: user.policeStationArea,
             });
         } else {
             res.status(404).json({ success: false, message: "User not found" });
@@ -106,9 +126,30 @@ const getAllUsers = async (req, res) => {
     }
 };
 
+const updateLocality = async (req, res) => {
+    try {
+        const { state, district, locality, pincode, policeStationArea } = req.body;
+        const user = await User.findById(req.user._id);
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+        user.state = state || user.state;
+        user.district = district || user.district;
+        user.locality = locality || user.locality;
+        user.pincode = pincode || user.pincode;
+        user.policeStationArea = policeStationArea || user.policeStationArea;
+
+        await user.save();
+
+        res.json({ success: true, data: user });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Server error", error: error.message });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
     getUserProfile,
     getAllUsers,
+    updateLocality,
 };

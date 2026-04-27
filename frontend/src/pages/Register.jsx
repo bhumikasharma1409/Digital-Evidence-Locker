@@ -40,7 +40,12 @@ export default function Register() {
         fullName: "",
         email: "",
         password: "",
-        confirmPassword: ""
+        confirmPassword: "",
+        state: "",
+        district: "",
+        locality: "",
+        pincode: "",
+        policeStationArea: ""
     });
 
     const [errors, setErrors] = useState({});
@@ -98,7 +103,12 @@ export default function Register() {
                 body: JSON.stringify({
                     fullName: formData.fullName,
                     email: formData.email,
-                    password: formData.password
+                    password: formData.password,
+                    state: formData.state,
+                    district: formData.district,
+                    locality: formData.locality,
+                    pincode: formData.pincode,
+                    policeStationArea: formData.policeStationArea
                 }),
             });
 
@@ -242,6 +252,58 @@ export default function Register() {
                             style={{ background: "rgba(0,0,0,0.4)", border: `1px solid ${errors.confirmPassword ? 'rgba(239,68,68,0.5)' : 'rgba(20,210,160,0.3)'}`, color: "#14d2a0", fontFamily: "'Share Tech Mono', monospace" }}
                         />
                         {errors.confirmPassword && <p className="mt-1 text-xs text-red-400">{errors.confirmPassword}</p>}
+                    </div>
+
+                    <div className="pt-4 border-t border-teal-500/20">
+                        <label className="block text-xs font-bold text-slate-400 tracking-widest mb-4" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                            GEOGRAPHICAL ASSIGNMENT
+                        </label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <input
+                                    type="text"
+                                    name="state"
+                                    value={formData.state}
+                                    onChange={handleChange}
+                                    placeholder="State"
+                                    className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition-all placeholder:text-slate-600 focus:ring-1 border-teal-500/30 focus:ring-teal-400/50"
+                                    style={{ background: "rgba(0,0,0,0.4)", color: "#14d2a0", fontFamily: "'Share Tech Mono', monospace" }}
+                                />
+                            </div>
+                            <div>
+                                <input
+                                    type="text"
+                                    name="district"
+                                    value={formData.district}
+                                    onChange={handleChange}
+                                    placeholder="District"
+                                    className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition-all placeholder:text-slate-600 focus:ring-1 border-teal-500/30 focus:ring-teal-400/50"
+                                    style={{ background: "rgba(0,0,0,0.4)", color: "#14d2a0", fontFamily: "'Share Tech Mono', monospace" }}
+                                />
+                            </div>
+                            <div>
+                                <input
+                                    type="text"
+                                    name="locality"
+                                    value={formData.locality}
+                                    onChange={handleChange}
+                                    placeholder="Locality"
+                                    className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition-all placeholder:text-slate-600 focus:ring-1 border-teal-500/30 focus:ring-teal-400/50"
+                                    style={{ background: "rgba(0,0,0,0.4)", color: "#14d2a0", fontFamily: "'Share Tech Mono', monospace" }}
+                                />
+                            </div>
+                            <div>
+                                <input
+                                    type="text"
+                                    name="pincode"
+                                    value={formData.pincode}
+                                    onChange={handleChange}
+                                    placeholder="Pincode"
+                                    className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition-all placeholder:text-slate-600 focus:ring-1 border-teal-500/30 focus:ring-teal-400/50"
+                                    style={{ background: "rgba(0,0,0,0.4)", color: "#14d2a0", fontFamily: "'Share Tech Mono', monospace" }}
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     {/* Submit Button */}
