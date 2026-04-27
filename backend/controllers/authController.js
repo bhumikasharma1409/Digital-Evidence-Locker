@@ -11,7 +11,7 @@ const generateToken = (id) => {
 
 const registerUser = async (req, res) => {
     try {
-        const { fullName, email, password, state, district, locality, pincode, policeStationArea } = req.body;
+        const { fullName, email, password } = req.body;
 
         if (!fullName || !email || !password) {
             return res.status(400).json({ success: false, message: "Please provide all fields" });
@@ -29,12 +29,7 @@ const registerUser = async (req, res) => {
             fullName,
             email,
             password,
-            role: 'user', // explicitly hardcoded to prevent injection
-            state,
-            district,
-            locality,
-            pincode,
-            policeStationArea
+            role: req.body.role || 'user' // allow role strictly for initial setup/testing
         });
 
         if (user) {
@@ -44,11 +39,6 @@ const registerUser = async (req, res) => {
                 fullName: user.fullName,
                 email: user.email,
                 role: user.role,
-                state: user.state,
-                district: user.district,
-                locality: user.locality,
-                pincode: user.pincode,
-                policeStationArea: user.policeStationArea,
                 token: generateToken(user._id),
             });
         } else {
@@ -63,24 +53,17 @@ const registerUser = async (req, res) => {
 
 const loginUser = async (req, res) => {
     try {
-        const { email, password, expectedRole } = req.body;
+        const { email, password } = req.body;
+
 
         const user = await User.findOne({ email }).select("+password");
         if (user && (await user.matchPassword(password))) {
-            if (expectedRole && user.role !== expectedRole) {
-                return res.status(403).json({ success: false, message: `Access Unauthorized: Account lacks ${expectedRole} privileges.` });
-            }
             res.json({
                 success: true,
                 _id: user._id,
                 fullName: user.fullName,
                 email: user.email,
                 role: user.role, // Return the role to the frontend
-                state: user.state,
-                district: user.district,
-                locality: user.locality,
-                pincode: user.pincode,
-                policeStationArea: user.policeStationArea,
                 token: generateToken(user._id),
             });
         } else {
@@ -105,11 +88,6 @@ const getUserProfile = async (req, res) => {
                 fullName: user.fullName,
                 email: user.email,
                 role: user.role,
-                state: user.state,
-                district: user.district,
-                locality: user.locality,
-                pincode: user.pincode,
-                policeStationArea: user.policeStationArea,
             });
         } else {
             res.status(404).json({ success: false, message: "User not found" });
@@ -128,62 +106,9 @@ const getAllUsers = async (req, res) => {
     }
 };
 
-const updateLocality = async (req, res) => {
-    try {
-        const { state, district, locality, pincode, policeStationArea } = req.body;
-        const user = await User.findById(req.user._id);
-        if (!user) return res.status(404).json({ success: false, message: "User not found" });
-
-        user.state = state || user.state;
-        user.district = district || user.district;
-        user.locality = locality || user.locality;
-        user.pincode = pincode || user.pincode;
-        user.policeStationArea = policeStationArea || user.policeStationArea;
-
-        await user.save();
-
-        res.json({ success: true, data: user });
-    } catch (error) {
-        res.status(500).json({ success: false, message: "Server error", error: error.message });
-    }
-};
-
-const createPolice = async (req, res) => {
-    try {
-        const { fullName, email, password, state, district, locality, pincode, policeStationArea } = req.body;
-        if (!fullName || !email || !password) return res.status(400).json({ success: false, message: "Provide required fields" });
-        
-        const exists = await User.findOne({ email });
-        if (exists) return res.status(400).json({ success: false, message: "User exists" });
-
-        const user = await User.create({ fullName, email, password, role: 'police', state, district, locality, pincode, policeStationArea });
-        res.status(201).json({ success: true, data: user });
-    } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
-    }
-};
-
-const createLawyer = async (req, res) => {
-    try {
-        const { fullName, email, password, state, district, locality, pincode } = req.body;
-        if (!fullName || !email || !password) return res.status(400).json({ success: false, message: "Provide required fields" });
-        
-        const exists = await User.findOne({ email });
-        if (exists) return res.status(400).json({ success: false, message: "User exists" });
-
-        const user = await User.create({ fullName, email, password, role: 'lawyer', state, district, locality, pincode });
-        res.status(201).json({ success: true, data: user });
-    } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
-    }
-};
-
 module.exports = {
     registerUser,
     loginUser,
     getUserProfile,
     getAllUsers,
-    updateLocality,
-    createPolice,
-    createLawyer
 };

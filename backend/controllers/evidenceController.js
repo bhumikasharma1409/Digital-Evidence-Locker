@@ -40,7 +40,7 @@ const pushAudit = async (caseId, logMsg) => {
 
 exports.uploadEvidence = async (req, res) => {
     try {
-        const { caseId, locality, state, district, pincode, policeStationArea } = req.body;
+        const { caseId } = req.body;
         if (!req.file || !caseId) {
             return res.status(400).json({ success: false, message: "File and caseId required" });
         }
@@ -53,26 +53,11 @@ exports.uploadEvidence = async (req, res) => {
             filePath: req.file.path,
             originalName: req.file.originalname,
             hash,
-            locality: locality || req.user.locality,
-            state: state || req.user.state,
-            district: district || req.user.district,
-            pincode: pincode || req.user.pincode,
-            policeStationArea: policeStationArea || req.user.policeStationArea,
             activityLog: ["Evidence initialized"]
         });
 
         await pushAudit(caseId, `Evidence item [${req.file.originalname}] universally seeded by ${req.user.fullName}`);
         await logCustody(evidence._id, caseId, "Uploaded Evidence", req.user._id, req.user.role, "Vault object initialized into system.");
-
-        const io = req.app.get("io");
-        if (io) {
-            const loc = locality || req.user.locality;
-            if (loc) {
-                io.to(`police_${loc}`).emit("evidence_uploaded", evidence);
-                io.to(`lawyer_${loc}`).emit("evidence_uploaded", evidence);
-            }
-            io.to("role_admin").emit("evidence_uploaded", evidence);
-        }
 
         res.status(201).json({ success: true, data: evidence });
     } catch (error) {
@@ -189,12 +174,6 @@ exports.verifyEvidence = async (req, res) => {
         await pushAudit(evidence.caseId, `Evidence [${evidence.originalName}] cryptographically VERIFIED`);
         await logCustody(evidence._id, evidence.caseId, "Verified Evidence", req.user._id, req.user.role, "Cryptographic seal validated successfully.");
 
-        const io = req.app.get("io");
-        if (io) {
-            io.to(`user_${evidence.uploadedBy}`).emit("evidence_status_updated", evidence);
-            io.to(`case_${evidence.caseId}`).emit("evidence_status_updated", evidence);
-        }
-
         res.status(200).json({ success: true, data: evidence });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -214,12 +193,6 @@ exports.rejectEvidence = async (req, res) => {
         await evidence.save();
         await pushAudit(evidence.caseId, `Evidence [${evidence.originalName}] natively REJECTED from ledger.`);
         await logCustody(evidence._id, evidence.caseId, "Rejected Evidence", req.user._id, req.user.role, "Explicitly rejected verified alignment.");
-
-        const io = req.app.get("io");
-        if (io) {
-            io.to(`user_${evidence.uploadedBy}`).emit("evidence_status_updated", evidence);
-            io.to(`case_${evidence.caseId}`).emit("evidence_status_updated", evidence);
-        }
 
         res.status(200).json({ success: true, data: evidence });
     } catch (error) {
@@ -258,9 +231,6 @@ exports.addRemarks = async (req, res) => {
         await evidence.save();
         await pushAudit(evidence.caseId, `Cyber-Remarks appended natively into [${evidence.originalName}] log.`);
 
-        const io = req.app.get("io");
-        if (io) io.to(`evidence_${evidence._id}`).emit("note_added", evidence);
-
         res.status(200).json({ success: true, data: evidence });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -278,9 +248,6 @@ exports.addLawyerNotes = async (req, res) => {
         
         await evidence.save();
         await pushAudit(evidence.caseId, `Lawyer notes appended actively onto evidence sequence [Hidden internally]`);
-
-        const io = req.app.get("io");
-        if (io) io.to(`evidence_${evidence._id}`).emit("note_added", evidence);
 
         res.status(200).json({ success: true, data: evidence });
     } catch (error) {
@@ -308,12 +275,6 @@ exports.requestAccess = async (req, res) => {
         await evidence.save();
         await pushAudit(evidence.caseId, `Unauthorized request-ping recorded mapping towards [${evidence.originalName}]`);
         await logCustody(evidence._id, evidence.caseId, "Requested Access", req.user._id, req.user.role, `Reason: ${reason || 'N/A'}`);
-
-        const io = req.app.get("io");
-        if (io) {
-            io.to(`user_${evidence.uploadedBy}`).emit("access_request_created", evidence);
-            io.to("role_admin").emit("access_request_created", evidence);
-        }
 
         res.status(200).json({ success: true, data: evidence });
     } catch (error) {
@@ -347,12 +308,6 @@ exports.approveAccessRequest = async (req, res) => {
         await evidence.save();
         await logCustody(evidence._id, evidence.caseId, "Approved Access Request", req.user._id, req.user.role, `Approved access for ID: ${request.requestedBy}`);
 
-        const io = req.app.get("io");
-        if (io) {
-            io.to(`user_${request.requestedBy}`).emit("access_request_updated", evidence);
-            io.to(`evidence_${evidence._id}`).emit("access_request_updated", evidence);
-        }
-
         res.status(200).json({ success: true, data: evidence });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -377,12 +332,6 @@ exports.rejectAccessRequest = async (req, res) => {
 
         await evidence.save();
         await logCustody(evidence._id, evidence.caseId, "Rejected Access Request", req.user._id, req.user.role, `Rejected access for ID: ${request.requestedBy}`);
-
-        const io = req.app.get("io");
-        if (io) {
-            io.to(`user_${request.requestedBy}`).emit("access_request_updated", evidence);
-            io.to(`evidence_${evidence._id}`).emit("access_request_updated", evidence);
-        }
 
         res.status(200).json({ success: true, data: evidence });
     } catch (error) {
@@ -450,19 +399,6 @@ exports.downloadEvidence = async (req, res) => {
         await logCustody(evidence._id, evidence.caseId, "Downloaded Raw File", req.user._id, req.user.role, "Secured direct binary fetch request.");
 
         res.download(fullPath, evidence.originalName || "evidence.bin");
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
-exports.getEvidenceByLocality = async (req, res) => {
-    try {
-        const locality = req.user.locality;
-        const evidence = await Evidence.find({ locality })
-            .populate("caseId", "title status")
-            .populate("uploadedBy", "fullName role");
-            
-        res.status(200).json({ success: true, data: evidence });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

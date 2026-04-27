@@ -41,11 +41,6 @@ const caseSchema = new mongoose.Schema({
     type: String,
     default: "Pending"
   },
-  state: { type: String },
-  district: { type: String },
-  locality: { type: String },
-  pincode: { type: String },
-  policeStationArea: { type: String },
   evidenceFile: {
     type: String,
   },

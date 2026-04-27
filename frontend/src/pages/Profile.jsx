@@ -206,12 +206,6 @@ export default function Profile() {
                             <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1" style={{ fontFamily: "'Share Tech Mono', monospace" }}>AGENT IDENTIFIER ID</div>
                             <div className="text-sm text-slate-200" style={{ fontFamily: "monospace" }}>{displayUser._id || "AWAITING_GEN"}</div>
                         </div>
-                        <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-left mt-4 md:mt-0 md:col-span-2">
-                            <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1" style={{ fontFamily: "'Share Tech Mono', monospace" }}>ASSIGNED SECTOR (LOCALITY)</div>
-                            <div className="text-sm text-slate-200" style={{ fontFamily: "monospace" }}>
-                                {displayUser.locality ? `${displayUser.locality.toUpperCase()} // ${displayUser.district.toUpperCase()} // ${displayUser.state.toUpperCase()} [${displayUser.pincode}]` : "UNASSIGNED_SECTOR"}
-                            </div>
-                        </div>
                     </div>
 
                 </div>

@@ -28,11 +28,6 @@ const evidenceSchema = new mongoose.Schema(
             enum: ["pending", "verified", "rejected", "locked"],
             default: "pending"
         },
-        state: { type: String },
-        district: { type: String },
-        locality: { type: String },
-        pincode: { type: String },
-        policeStationArea: { type: String },
         isLocked: {
             type: Boolean,
             default: false
