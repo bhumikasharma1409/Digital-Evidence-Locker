@@ -158,6 +158,13 @@ exports.updateCase = async (req, res) => {
     });
 
     const updatedCase = await caseItem.save();
+    
+    // Socket emit
+    const io = req.app.get("io");
+    if (io) {
+        io.to(req.params.id).emit("caseUpdated", updatedCase);
+        io.emit("casesRefreshed"); // Global refresh for dashboards
+    }
 
     res.status(200).json({
       success: true,
@@ -230,10 +237,22 @@ exports.getCaseById = async (req, res) => {
 };
 
 exports.getUserCases = async (req, res) => {
-
   try {
+    let filter = {};
+    if (req.user.role === "police") {
+      filter = { district: req.user.district, state: req.user.state };
+    } else if (req.user.role === "lawyer") {
+      filter = { assignedLawyer: req.user._id };
+    } else {
+      filter = { createdBy: req.user._id };
+    }
 
-    const cases = await Case.find().sort({ createdAt: -1 });
+    const cases = await Case.find(filter)
+      .populate("assignedPolice", "fullName role")
+      .populate("assignedLawyer", "fullName role")
+      .populate("verifiedBy", "fullName role")
+      .sort({ createdAt: -1 });
+
     res.status(200).json({
       success: true,
       data: cases
@@ -344,7 +363,14 @@ exports.assignPolice = async (req, res) => {
     caseItem.status = "Under Investigation";
     caseItem.activityLog.push(`Case ownership taken by ${req.user.fullName}`);
     
-    const updatedCase = await caseItem.save();
+  const updatedCase = await caseItem.save();
+  
+  // Socket emit
+  const io = req.app.get("io");
+  if (io) {
+      io.to(req.params.id).emit("caseUpdated", updatedCase);
+      io.emit("casesRefreshed");
+  }
     
   try { await logAction(caseItem._id, "CASE_ASSIGNED", req.user, `Case ownership taken by Officer ${req.user.fullName}`); } catch(e){console.error(e)}
 
@@ -361,22 +387,31 @@ exports.addNote = async (req, res) => {
       return res.status(400).json({ success: false, message: "Note text is required." });
     }
 
-    const caseItem = await Case.findById(req.params.id);
-    if (!caseItem) {
+    const updatedCase = await Case.findByIdAndUpdate(
+      req.params.id,
+      {
+        $push: {
+          notes: {
+            text,
+            createdBy: req.user._id,
+            role: req.user.role
+          }
+        }
+      },
+      { new: true }
+    ).populate("notes.createdBy", "fullName role");
+
+    if (!updatedCase) {
       return res.status(404).json({ success: false, message: "Case not found." });
     }
 
-    caseItem.notes.push({
-      text,
-      createdBy: req.user._id
-    });
-    
-    await caseItem.save();
+    // Socket emit
+    const io = req.app.get("io");
+    if (io) {
+        io.to(req.params.id).emit("noteAdded", updatedCase.notes);
+    }
 
-    try { await logAction(caseItem._id, "NOTE_ADDED", req.user, `Investigation note added by ${req.user.fullName || req.user._id}`); } catch(e){console.error(e)}
-
-    // Re-fetch or populate to return the complete populated list
-    const updatedCase = await Case.findById(req.params.id).populate("notes.createdBy", "fullName role");
+    try { await logAction(updatedCase._id, "NOTE_ADDED", req.user, `Note added by ${req.user.role} ${req.user.fullName || req.user._id}`); } catch(e){console.error(e)}
 
     res.status(200).json({ success: true, message: "Note added successfully", data: updatedCase.notes });
   } catch (error) {
@@ -439,8 +474,35 @@ exports.verifyCase = async (req, res) => {
       .populate("assignedLawyer", "fullName role")
       .populate("verifiedBy", "fullName role");
 
+    // Socket emit
+    const io = req.app.get("io");
+    if (io) {
+        io.to(req.params.id).emit("caseUpdated", populatedCase);
+        io.emit("casesRefreshed");
+    }
+
     res.status(200).json({ success: true, message: "Case successfully verified.", data: populatedCase });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error: " + error.message });
   }
+};
+
+// SSR Controller: Renders an EJS template server-side
+exports.renderReport = async (req, res) => {
+    try {
+        const caseItem = await Case.findById(req.params.id)
+            .populate("createdBy", "fullName")
+            .populate("assignedPolice", "fullName")
+            .populate("assignedLawyer", "fullName");
+
+        if (!caseItem) {
+            return res.status(404).send("Case not found in forensic database.");
+        }
+
+        // Render the 'report' view with the case data
+        res.render("report", { caseData: caseItem });
+    } catch (error) {
+        console.error("SSR Error:", error);
+        res.status(500).send("Critical failure in SSR engine: " + error.message);
+    }
 };

@@ -59,16 +59,33 @@ exports.uploadEvidence = async (req, res) => {
         await pushAudit(caseId, `Evidence item [${req.file.originalname}] universally seeded by ${req.user.fullName}`);
         await logCustody(evidence._id, caseId, "Uploaded Evidence", req.user._id, req.user.role, "Vault object initialized into system.");
 
+        // Socket emit
+        const io = req.app.get("io");
+        if (io) {
+            io.to(caseId).emit("evidenceUploaded", evidence);
+        }
+
         res.status(201).json({ success: true, data: evidence });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
 };
 
+const mongoose = require("mongoose");
+
 exports.getEvidenceForCase = async (req, res) => {
     try {
         const { caseId } = req.params;
-        const evidenceList = await Evidence.find({ caseId })
+        
+        // Ensure caseId is a valid ObjectId for the query
+        const query = {};
+        if (mongoose.Types.ObjectId.isValid(caseId)) {
+            query.caseId = new mongoose.Types.ObjectId(caseId);
+        } else {
+            query.caseId = caseId;
+        }
+
+        const evidenceList = await Evidence.find(query)
             .populate("uploadedBy", "fullName role")
             .populate("sharedWithPolice", "fullName")
             .populate("sharedWithLawyers", "fullName")
@@ -77,15 +94,24 @@ exports.getEvidenceForCase = async (req, res) => {
             .populate("rejectedBy", "fullName")
             .populate("accessRequests.requestedBy", "fullName role");
 
-        // Filter based on roles
+        // Fetch the case to check ownership
+        const caseItem = await Case.findById(caseId);
+
+        // Filter based on roles and ownership
         const filtered = evidenceList.map(ev => {
             const evObj = ev.toObject();
             evObj.hasAccess = true;
+
+            const uploaderId = ev.uploadedBy?._id?.toString() || ev.uploadedBy?.toString();
+            const currentUserId = req.user._id.toString();
+
             if (req.user.role === "lawyer") {
                 // Return lawyerNotes only for the specific lawyer
-                evObj.lawyerNotes = ev.lawyerNotes.filter(n => n.lawyerId.toString() === req.user._id.toString());
+                if (ev.lawyerNotes) {
+                    evObj.lawyerNotes = ev.lawyerNotes.filter(n => n.lawyerId && n.lawyerId.toString() === currentUserId);
+                }
                 
-                const hasExplicitAccess = ev.sharedWithLawyers.some(l => l._id.toString() === req.user._id.toString());
+                const hasExplicitAccess = ev.sharedWithLawyers && ev.sharedWithLawyers.some(l => (l._id?.toString() || l.toString()) === currentUserId);
                 if (!hasExplicitAccess && ev.status !== "verified") {
                     evObj.hasAccess = false;
                     evObj.filePath = null;
@@ -95,15 +121,23 @@ exports.getEvidenceForCase = async (req, res) => {
             }
             return evObj;
         }).filter(ev => {
+            const currentUserId = req.user._id.toString();
+            const uploaderId = ev.uploadedBy?._id?.toString() || ev.uploadedBy?.toString();
+            const isOwner = caseItem && caseItem.createdBy && caseItem.createdBy.toString() === currentUserId;
+
             if (req.user.role === "admin" || req.user.role === "forensic") return true;
-            if (req.user.role === "user") return ev.uploadedBy._id.toString() === req.user._id.toString();
-            if (req.user.role === "police") return true; // assuming police can see to verify
-            if (req.user.role === "lawyer") return true; // lawyer sees it to request access
+            if (req.user.role === "user") {
+                // User can see what they uploaded OR any evidence in their own case
+                return uploaderId === currentUserId || isOwner;
+            }
+            if (req.user.role === "police") return true; 
+            if (req.user.role === "lawyer") return true; 
             return false;
         });
 
         res.status(200).json({ success: true, data: filtered });
     } catch (error) {
+        console.error("Error in getEvidenceForCase:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -173,6 +207,12 @@ exports.verifyEvidence = async (req, res) => {
         await evidence.save();
         await pushAudit(evidence.caseId, `Evidence [${evidence.originalName}] cryptographically VERIFIED`);
         await logCustody(evidence._id, evidence.caseId, "Verified Evidence", req.user._id, req.user.role, "Cryptographic seal validated successfully.");
+
+        // Socket emit
+        const io = req.app.get("io");
+        if (io) {
+            io.to(evidence.caseId.toString()).emit("evidenceUpdated", evidence);
+        }
 
         res.status(200).json({ success: true, data: evidence });
     } catch (error) {
@@ -276,6 +316,12 @@ exports.requestAccess = async (req, res) => {
         await pushAudit(evidence.caseId, `Unauthorized request-ping recorded mapping towards [${evidence.originalName}]`);
         await logCustody(evidence._id, evidence.caseId, "Requested Access", req.user._id, req.user.role, `Reason: ${reason || 'N/A'}`);
 
+        // Socket emit
+        const io = req.app.get("io");
+        if (io) {
+            io.to(evidence.caseId.toString()).emit("evidenceUpdated", evidence);
+        }
+
         res.status(200).json({ success: true, data: evidence });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -287,9 +333,16 @@ exports.approveAccessRequest = async (req, res) => {
         const evidence = await Evidence.findById(req.params.id);
         if (!evidence) return res.status(404).json({ success: false, message: "Not found" });
 
-        // Only uploader, explicitly verified admin, or police can approve
-        if (evidence.uploadedBy.toString() !== req.user._id.toString() && !["admin", "police", "forensic"].includes(req.user.role)) {
-             return res.status(403).json({ success: false, message: "Unauthorized to approve" });
+        // Fetch the associated case to check ownership
+        const caseItem = await Case.findById(evidence.caseId);
+        if (!caseItem) return res.status(404).json({ success: false, message: "Associated case not found" });
+
+        const isCaseCreator = caseItem.createdBy.toString() === req.user._id.toString();
+        const isUploader = evidence.uploadedBy.toString() === req.user._id.toString();
+
+        // Only Case Creator (User), the uploader, or Admin/Forensic can approve
+        if (!isCaseCreator && !isUploader && !["admin", "forensic"].includes(req.user.role)) {
+             return res.status(403).json({ success: false, message: "Only the case owner or uploader can approve access requests." });
         }
 
         const request = evidence.accessRequests.id(req.params.requestId);
@@ -308,6 +361,12 @@ exports.approveAccessRequest = async (req, res) => {
         await evidence.save();
         await logCustody(evidence._id, evidence.caseId, "Approved Access Request", req.user._id, req.user.role, `Approved access for ID: ${request.requestedBy}`);
 
+        // Socket emit
+        const io = req.app.get("io");
+        if (io) {
+            io.to(evidence.caseId.toString()).emit("evidenceUpdated", evidence);
+        }
+
         res.status(200).json({ success: true, data: evidence });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -319,8 +378,15 @@ exports.rejectAccessRequest = async (req, res) => {
         const evidence = await Evidence.findById(req.params.id);
         if (!evidence) return res.status(404).json({ success: false, message: "Not found" });
 
-        if (evidence.uploadedBy.toString() !== req.user._id.toString() && !["admin", "police", "forensic"].includes(req.user.role)) {
-             return res.status(403).json({ success: false, message: "Unauthorized to reject" });
+        // Fetch the associated case to check ownership
+        const caseItem = await Case.findById(evidence.caseId);
+        if (!caseItem) return res.status(404).json({ success: false, message: "Associated case not found" });
+
+        const isCaseCreator = caseItem.createdBy.toString() === req.user._id.toString();
+        const isUploader = evidence.uploadedBy.toString() === req.user._id.toString();
+
+        if (!isCaseCreator && !isUploader && !["admin", "forensic"].includes(req.user.role)) {
+             return res.status(403).json({ success: false, message: "Only the case owner or uploader can reject access requests." });
         }
 
         const request = evidence.accessRequests.id(req.params.requestId);

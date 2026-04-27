@@ -90,6 +90,7 @@ const caseSchema = new mongoose.Schema({
     {
       text: { type: String, required: true },
       createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+      role: { type: String, enum: ["police", "lawyer"] },
       timestamp: { type: Date, default: Date.now }
     }
   ]

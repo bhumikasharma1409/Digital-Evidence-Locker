@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-export default function EvidenceCard({ evidence, userRole, refreshData, usersList }) {
+export default function EvidenceCard({ evidence, userRole, refreshData, usersList, caseCreatorId, currentUserId }) {
     const [actionLoading, setActionLoading] = useState(false);
     const [assignInput, setAssignInput] = useState("");
     const [requestReason, setRequestReason] = useState("");
@@ -319,7 +319,8 @@ export default function EvidenceCard({ evidence, userRole, refreshData, usersLis
                 <button onClick={() => setActiveTab("custody")} className={`px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest flex items-center gap-2 ${activeTab === "custody" ? "text-teal-400 border-b-2 border-teal-500 bg-teal-500/5" : "text-slate-500 hover:text-slate-300"}`}>
                     Custody Log <span className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-pulse"></span>
                 </button>
-                {["police", "admin", "user"].includes(userRole) && evidence.accessRequests?.some(r => r.status === "pending") && (
+                {/* Only the Case Creator (User) or Admin can see and manage access requests */}
+                {(userRole === "admin" || (userRole === "user" && currentUserId?.toString() === caseCreatorId?.toString())) && evidence.accessRequests?.some(r => r.status === "pending") && (
                     <button onClick={() => setActiveTab("requests")} className={`px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest flex items-center gap-2 ${activeTab === "requests" ? "text-orange-400 border-b-2 border-orange-500 bg-orange-500/5" : "text-orange-500/50 hover:text-orange-400"}`}>
                         Requests <span className="px-1.5 py-0.5 bg-orange-500 text-black rounded text-[9px]">{evidence.accessRequests.filter(r => r.status === "pending").length}</span>
                     </button>

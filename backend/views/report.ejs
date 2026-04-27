@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evidence Report: <%= caseData.title %></title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #f4f4f4;
+            color: #333;
+            padding: 40px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 50px;
+            border: 1px solid #ccc;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 80px;
+            color: rgba(0,0,0,0.05);
+            pointer-events: none;
+            white-space: nowrap;
+            text-transform: uppercase;
+        }
+        header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+        }
+        h1 { margin: 0; font-size: 24px; text-transform: uppercase; }
+        .case-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .section { margin-bottom: 30px; }
+        .section-title {
+            text-transform: uppercase;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #555;
+        }
+        .data-row {
+            display: flex;
+            margin-bottom: 5px;
+        }
+        .label { width: 150px; flex-shrink: 0; color: #777; }
+        .value { flex-grow: 1; }
+        .qr-placeholder {
+            float: right;
+            width: 100px;
+            height: 100px;
+            border: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            text-align: center;
+        }
+        footer {
+            margin-top: 50px;
+            font-size: 10px;
+            color: #888;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+            text-align: center;
+        }
+        .seal {
+            border: 2px solid #333;
+            padding: 10px;
+            display: inline-block;
+            margin-top: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="watermark">OFFICIAL RECORD</div>
+        
+        <header>
+            <div class="qr-placeholder">DIGITAL<br>CERTIFICATE<br>QR</div>
+            <h1>Digital Evidence Locker</h1>
+            <p>Official Forensic Incident Report</p>
+        </header>
+
+        <div class="case-header">
+            <span>CASE ID: <%= caseData._id %></span>
+            <span>DATE: <%= new Date().toLocaleDateString() %></span>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Case Metadata</div>
+            <div class="data-row">
+                <div class="label">Title:</div>
+                <div class="value"><%= caseData.title %></div>
+            </div>
+            <div class="data-row">
+                <div class="label">Category:</div>
+                <div class="value"><%= caseData.category %></div>
+            </div>
+            <div class="data-row">
+                <div class="label">Status:</div>
+                <div class="value"><%= caseData.status %></div>
+            </div>
+            <div class="data-row">
+                <div class="label">Created At:</div>
+                <div class="value"><%= new Date(caseData.createdAt).toLocaleString() %></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Incident Description</div>
+            <p><%= caseData.description %></p>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Verification Hash (SHA-256)</div>
+            <p style="word-break: break-all; font-size: 12px; background: #eee; padding: 10px; border-radius: 4px;">
+                <%= caseData.hash || 'NO_HASH_GENERATED' %>
+            </p>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Personnel Alignment</div>
+            <div class="data-row">
+                <div class="label">Reporting User:</div>
+                <div class="value"><%= caseData.createdBy ? caseData.createdBy.fullName : 'N/A' %></div>
+            </div>
+            <div class="data-row">
+                <div class="label">Assigned Police:</div>
+                <div class="value"><%= caseData.assignedPolice ? caseData.assignedPolice.fullName : 'UNASSIGNED' %></div>
+            </div>
+            <div class="data-row">
+                <div class="label">Assigned Lawyer:</div>
+                <div class="value"><%= caseData.assignedLawyer ? caseData.assignedLawyer.fullName : 'UNASSIGNED' %></div>
+            </div>
+        </div>
+
+        <div class="seal">
+            Verification Status: <%= caseData.isVerified ? 'VERIFIED & SEALED' : 'PENDING VERIFICATION' %>
+        </div>
+
+        <footer>
+            This document is a server-side rendered (SSR) representation of the digital evidence locker record. 
+            All data is fetched directly from the forensic database at the time of generation.
+            Internal System Reference: <%= new Date().getTime() %>
+        </footer>
+    </div>
+</body>
+</html>

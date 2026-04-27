@@ -10,9 +10,12 @@ import Profile from "./pages/Profile";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AuthenticatedLayout from "./components/AuthenticatedLayout";
 
+import { SocketProvider } from "./context/SocketContext";
+
 function App() {
   return (
-    <BrowserRouter>
+    <SocketProvider>
+      <BrowserRouter>
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
@@ -30,6 +33,7 @@ function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </SocketProvider>
   );
 }
 

@@ -8,6 +8,7 @@ import axios from "axios";
 import ConfirmationModal from "../components/ConfirmationModal";
 import Toast from "../components/Toast";
 import EvidenceCard from "../components/EvidenceCard";
+import { useSocket } from "../context/SocketContext";
 
 // --- Matrix Rain Canvas ---
 function MatrixRain() {
@@ -143,6 +144,7 @@ const renderEvidenceFile = (filePath) => {
 export default function CaseDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const socket = useSocket();
 
     const [caseData, setCaseData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -255,7 +257,36 @@ export default function CaseDetails() {
 
     useEffect(() => {
         fetchCaseData();
-    }, [id, navigate]);
+
+        if (socket && id) {
+            socket.emit("joinCase", id);
+
+            socket.on("caseUpdated", (updatedCase) => {
+                if (updatedCase._id === id) {
+                    setCaseData(prev => ({ ...prev, ...updatedCase }));
+                }
+            });
+
+            socket.on("noteAdded", (updatedNotes) => {
+                setNotes(updatedNotes);
+            });
+
+            socket.on("evidenceUploaded", () => {
+                fetchEvidence(localStorage.getItem("token"));
+            });
+
+            socket.on("evidenceUpdated", () => {
+                fetchEvidence(localStorage.getItem("token"));
+            });
+
+            return () => {
+                socket.off("caseUpdated");
+                socket.off("noteAdded");
+                socket.off("evidenceUploaded");
+                socket.off("evidenceUpdated");
+            };
+        }
+    }, [id, navigate, socket]);
 
     if (loading) {
         return (
@@ -370,7 +401,7 @@ export default function CaseDetails() {
             });
             
             setToastMessage({ text: "Cryptographic Evidence generated and sealed successfully.", type: "success" });
-            fetchCaseData(); // Refreshes everything
+            await fetchEvidence(token); // Refresh the evidence list immediately
         } catch (err) {
             console.error("Upload error:", err);
             setToastMessage({ text: err.response?.data?.message || "Failed to seal evidence.", type: "error" });
@@ -480,6 +511,7 @@ export default function CaseDetails() {
 
     // Calculate Permissions
     const isAssignedPolice = userRole === "police" && assignedPolice?._id === loggedInUserId;
+    const isAssignedLawyer = userRole === "lawyer" && assignedLawyer?._id === loggedInUserId;
     const isOtherPolice = userRole === "police" && assignedPolice && assignedPolice._id !== loggedInUserId;
     const canEditStatus = ["admin", "forensic"].includes(userRole) || isAssignedPolice;
     const canUploadEvidence = ["admin", "forensic", "user"].includes(userRole) || isAssignedPolice;
@@ -506,9 +538,17 @@ export default function CaseDetails() {
 
                 {/* Action Buttons */}
                 <div className="flex justify-between items-center mb-8" style={{ animation: "fadeSlideUp 0.6s ease both" }}>
-                    <button onClick={() => navigate('/my-cases')} className="flex items-center gap-2 text-slate-400 hover:text-teal-400 transition-colors font-mono text-xs uppercase tracking-widest">
-                        <span>←</span> BACK TO DIRECTORY
-                    </button>
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => navigate('/my-cases')} className="flex items-center gap-2 text-slate-400 hover:text-teal-400 transition-colors font-mono text-xs uppercase tracking-widest">
+                            <span>←</span> BACK TO DIRECTORY
+                        </button>
+                        {userRole && (
+                            <HexBadge 
+                                label={`${userRole.toUpperCase()} SESSION`} 
+                                color={userRole === "police" ? "blue" : userRole === "lawyer" ? "purple" : "teal"} 
+                            />
+                        )}
+                    </div>
 
                     {["admin", "police"].includes(userRole) && (
                         <button onClick={handleDeleteClick} className="flex items-center gap-2 px-4 py-2 border border-red-500/30 text-red-500 bg-red-500/10 hover:bg-red-500/20 rounded-lg text-xs font-bold font-mono transition-colors">
@@ -700,7 +740,7 @@ export default function CaseDetails() {
                                     {notes.length > 0 ? notes.map((note, i) => (
                                         <div key={i} className="p-4 rounded-xl bg-yellow-500/5 border border-yellow-500/10">
                                             <div className="text-[10px] text-yellow-500/70 uppercase tracking-widest font-mono mb-2 flex justify-between">
-                                                <span>{note.createdBy?.fullName || "Agent"} [{note.createdBy?.role || "System"}]</span>
+                                                <span>{note.createdBy?.fullName || "Agent"} [{note.role || note.createdBy?.role || "System"}]</span>
                                                 <span>{new Date(note.timestamp).toLocaleString()}</span>
                                             </div>
                                             <div className="text-sm text-slate-300 font-mono whitespace-pre-wrap">{note.text}</div>
@@ -709,7 +749,7 @@ export default function CaseDetails() {
                                         <div className="text-xs text-slate-500 italic font-mono">No internal notes present.</div>
                                     )}
                                 </div>
-                                {isAssignedPolice && (
+                                {(isAssignedPolice || isAssignedLawyer) && (
                                     <div className="flex gap-3">
                                         <input 
                                             type="text" 
@@ -753,6 +793,8 @@ export default function CaseDetails() {
                                             key={ev._id} 
                                             evidence={ev} 
                                             userRole={userRole} 
+                                            caseCreatorId={caseData.createdBy?._id || caseData.createdBy}
+                                            currentUserId={loggedInUserId}
                                             refreshData={() => fetchEvidence(localStorage.getItem("token"))} 
                                             usersList={usersList} 
                                         />

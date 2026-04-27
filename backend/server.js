@@ -4,15 +4,33 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const connectDB = require("./config/db");
+const cookieParser = require("cookie-parser");
+const session = require("express-session");
 
 const caseRoutes = require("./routes/caseRoutes");
 const authRoutes = require("./routes/authRoutes");
 const evidenceRoutes = require("./routes/evidenceRoutes");
 const noteRoutes = require("./routes/noteRoutes");
 
+const http = require("http");
+const { Server } = require("socket.io");
+
 connectDB();
 
 const app = express();
+
+// Configure EJS for SSR
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
+
+// Middleware
+app.use(cookieParser());
+app.use(session({
+  secret: process.env.SESSION_SECRET || "digital-evidence-secret-key",
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: false, httpOnly: true, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+}));
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -24,6 +42,30 @@ app.use(cors({
   },
   credentials: true
 }));
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*", // We can refine this to match our Express CORS logic
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE"]
+  }
+});
+
+// Make io accessible to our routes
+app.set("io", io);
+
+io.on("connection", (socket) => {
+  console.log("Client connected:", socket.id);
+
+  socket.on("joinCase", (caseId) => {
+    socket.join(caseId);
+    console.log(`User joined case room: ${caseId}`);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Client disconnected:", socket.id);
+  });
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -43,6 +85,6 @@ app.use("/api/notes", noteRoutes);
 
 const PORT = process.env.PORT || 5001;
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

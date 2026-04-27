@@ -2,7 +2,9 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const path = require("path");
-const { protect, authorizeRoles, requirePolice, requireAssignedPolice } = require("../middleware/authMiddleware");
+const { protect, authorizeRoles, requirePolice, requireAssignedPolice, requireAssignedPoliceOrLawyer } = require("../middleware/authMiddleware");
+
+
 
 
 const storage = multer.diskStorage({
@@ -39,6 +41,10 @@ router.post("/", protect, authorizeRoles("user", "admin"), upload.single("eviden
 router.get("/", protect, authorizeRoles("user", "lawyer", "police", "admin"), getCases);
 
 
+// SSR Report Route
+const { renderReport } = require("../controllers/caseController");
+router.get("/report/:id", renderReport);
+
 router
     .route("/:id")
     .get(protect, authorizeRoles("user", "lawyer", "police", "forensic", "admin"), getCaseById)
@@ -51,10 +57,12 @@ router.patch("/:id/assign-police", protect, requirePolice, assignPolice);
 
 router.patch("/:id/status", protect, requireAssignedPolice, updateStatus);
 
-router.post("/:id/notes", protect, requireAssignedPolice, addNote);
+router.post("/:id/notes", protect, requireAssignedPoliceOrLawyer, addNote);
 
 router.patch("/:id/verify", protect, requireAssignedPolice, verifyCase);
 
+
+router.get("/user/:userId", protect, getUserCases);
 
 router.get("/user/:userId", protect, getUserCases);
 

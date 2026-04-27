@@ -17,25 +17,32 @@ const registerUser = async (req, res) => {
             return res.status(400).json({ success: false, message: "Please provide all fields" });
         }
 
-
         const userExists = await User.findOne({ email });
 
         if (userExists) {
             return res.status(400).json({ success: false, message: "User already exists" });
         }
 
-
         const user = await User.create({
             fullName,
             email,
             password,
-            role: req.body.role || 'user', // allow role strictly for initial setup/testing
+            role: req.body.role || 'user',
             locality: locality ? String(locality).toLowerCase().trim() : undefined,
             district: district ? String(district).toLowerCase().trim() : undefined,
             state: state ? String(state).toLowerCase().trim() : undefined
         });
 
         if (user) {
+            const token = generateToken(user._id);
+            
+            // Set HTTP-only cookie
+            res.cookie("token", token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+            });
+
             res.status(201).json({
                 success: true,
                 _id: user._id,
@@ -45,7 +52,7 @@ const registerUser = async (req, res) => {
                 locality: user.locality,
                 district: user.district,
                 state: user.state,
-                token: generateToken(user._id),
+                token,
             });
         } else {
             res.status(400).json({ success: false, message: "Invalid user data" });
@@ -61,19 +68,27 @@ const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-
         const user = await User.findOne({ email }).select("+password");
         if (user && (await user.matchPassword(password))) {
+            const token = generateToken(user._id);
+
+            // Set HTTP-only cookie
+            res.cookie("token", token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+            });
+
             res.json({
                 success: true,
                 _id: user._id,
                 fullName: user.fullName,
                 email: user.email,
-                role: user.role, // Return the role to the frontend
+                role: user.role,
                 locality: user.locality,
                 district: user.district,
                 state: user.state,
-                token: generateToken(user._id),
+                token,
             });
         } else {
             res.status(401).json({ success: false, message: "Invalid email or password" });
@@ -82,6 +97,14 @@ const loginUser = async (req, res) => {
         console.error("Login Error:", error);
         res.status(500).json({ success: false, message: "Server error during login", error: error.message });
     }
+};
+
+const logoutUser = async (req, res) => {
+    res.cookie("token", "", {
+        httpOnly: true,
+        expires: new Date(0)
+    });
+    res.status(200).json({ success: true, message: "Logged out successfully" });
 };
 
 
@@ -166,6 +189,7 @@ const getLawyers = async (req, res) => {
 module.exports = {
     registerUser,
     loginUser,
+    logoutUser,
     getUserProfile,
     getAllUsers,
     updateUserProfile,

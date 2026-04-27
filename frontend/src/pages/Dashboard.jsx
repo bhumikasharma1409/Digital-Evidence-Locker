@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useSocket } from "../context/SocketContext";
 
 // --- Matrix Rain Canvas ---
 function MatrixRain() {
@@ -80,6 +81,7 @@ function HexBadge({ label, color = "teal" }) {
 
 export default function Dashboard() {
     const navigate = useNavigate();
+    const socket = useSocket();
     const [cases, setCases] = useState([]);
     const [userName, setUserName] = useState("");
     const [userRole, setUserRole] = useState("");
@@ -138,7 +140,12 @@ export default function Dashboard() {
             }
         };
         fetchData();
-    }, []);
+
+        if (socket) {
+            socket.on("casesRefreshed", fetchData);
+            return () => socket.off("casesRefreshed");
+        }
+    }, [socket]);
 
     const handleTakeOwnership = async (caseId) => {
         try {
@@ -219,8 +226,14 @@ export default function Dashboard() {
                     <div className="text-xs text-teal-400 font-black uppercase tracking-[0.4em] mb-1" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
                         ── DIRECTORY ACCESS ──
                     </div>
-                    <h1 className="text-4xl font-black text-white" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                    <h1 className="text-4xl font-black text-white flex items-center gap-4" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
                         Welcome, <span className="text-teal-400">{userName || "Agent"}</span>
+                        {userRole && (
+                            <HexBadge 
+                                label={`${userRole.toUpperCase()} DASHBOARD`} 
+                                color={userRole === "police" ? "blue" : userRole === "lawyer" ? "purple" : "teal"} 
+                            />
+                        )}
                     </h1>
                     <p className="text-slate-400 text-sm tracking-wide">Secure Digital Evidence Locker Overview</p>
                 </div>
@@ -233,17 +246,19 @@ export default function Dashboard() {
                 </div>
 
                 {/* Create Case Button */}
-                <div className="mb-14" style={{ animation: "fadeSlideUp 0.8s ease 0.2s both" }}>
-                    <button
-                        onClick={() => navigate("/create-case")}
-                        className="w-full py-5 rounded-2xl font-black text-sm tracking-[0.3em] uppercase transition-all duration-300 transform hover:scale-[1.01] flex items-center justify-center gap-3 group overflow-hidden relative"
-                        style={{ border: "1px solid rgba(20,210,160,0.4)", background: "rgba(20,210,160,0.1)", color: "#14d2a0" }}
-                    >
-                        <div className="absolute inset-0 bg-teal-400/5 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500" />
-                        <span className="text-xl group-hover:rotate-90 transition-transform duration-300">+</span>
-                        <span>CREATE NEW CASE</span>
-                    </button>
-                </div>
+                {userRole === "user" && (
+                    <div className="mb-14" style={{ animation: "fadeSlideUp 0.8s ease 0.2s both" }}>
+                        <button
+                            onClick={() => navigate("/create-case")}
+                            className="w-full py-5 rounded-2xl font-black text-sm tracking-[0.3em] uppercase transition-all duration-300 transform hover:scale-[1.01] flex items-center justify-center gap-3 group overflow-hidden relative"
+                            style={{ border: "1px solid rgba(20,210,160,0.4)", background: "rgba(20,210,160,0.1)", color: "#14d2a0" }}
+                        >
+                            <div className="absolute inset-0 bg-teal-400/5 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500" />
+                            <span className="text-xl group-hover:rotate-90 transition-transform duration-300">+</span>
+                            <span>CREATE NEW CASE</span>
+                        </button>
+                    </div>
+                )}
 
                 {/* Case Sections */}
                 {userRole === "police" ? (
@@ -313,7 +328,9 @@ export default function Dashboard() {
                 ) : (
                     <div className="mb-10" style={{ animation: "fadeSlideUp 0.8s ease 0.3s both" }}>
                         <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-xl font-bold text-white tracking-widest uppercase" style={{ fontFamily: "'Share Tech Mono', monospace" }}>Recent Cases</h2>
+                            <h2 className="text-xl font-bold text-white tracking-widest uppercase" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                                {userRole === "lawyer" ? "Assigned Cases" : "Recent Cases"}
+                            </h2>
                             <button onClick={() => navigate("/my-cases")} className="text-xs text-teal-400 hover:text-teal-300 font-bold tracking-widest uppercase">View All →</button>
                         </div>
 
