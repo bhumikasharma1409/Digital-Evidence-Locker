@@ -30,9 +30,9 @@ const registerUser = async (req, res) => {
             email,
             password,
             role: req.body.role || 'user', // allow role strictly for initial setup/testing
-            locality,
-            district,
-            state
+            locality: locality ? String(locality).toLowerCase().trim() : undefined,
+            district: district ? String(district).toLowerCase().trim() : undefined,
+            state: state ? String(state).toLowerCase().trim() : undefined
         });
 
         if (user) {
@@ -128,9 +128,9 @@ const updateUserProfile = async (req, res) => {
                 {
                     $set: {
                         fullName: req.body.fullName || user.fullName,
-                        locality: req.body.locality !== undefined ? req.body.locality : user.locality,
-                        district: req.body.district !== undefined ? req.body.district : user.district,
-                        state: req.body.state !== undefined ? req.body.state : user.state,
+                        locality: req.body.locality !== undefined ? String(req.body.locality).toLowerCase().trim() : user.locality,
+                        district: req.body.district !== undefined ? String(req.body.district).toLowerCase().trim() : user.district,
+                        state: req.body.state !== undefined ? String(req.body.state).toLowerCase().trim() : user.state,
                     }
                 },
                 { new: true, runValidators: true }
