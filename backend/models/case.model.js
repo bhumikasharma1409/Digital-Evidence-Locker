@@ -64,6 +64,15 @@ const caseSchema = new mongoose.Schema({
   activityLog: [{
     type: String
   }],
+  auditLogs: [
+    {
+      action: { type: String, required: true },
+      performedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+      role: { type: String, default: "system" },
+      message: { type: String },
+      timestamp: { type: Date, default: Date.now }
+    }
+  ],
   isVerified: {
     type: Boolean,
     default: false

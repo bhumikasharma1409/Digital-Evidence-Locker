@@ -1,6 +1,7 @@
 const Case = require("../models/case.model");
 const crypto = require("crypto");
 const fs = require("fs");
+const { logAction } = require("../utils/auditLogger");
 
 const generateHash = (filePath) => {
     try {
@@ -59,6 +60,9 @@ exports.createCase = async (req, res) => {
     });
 
     const savedCase = await newCase.save();
+
+  // Log case creation
+  try { await logAction(savedCase._id, "CASE_CREATED", req.user, `Case created by ${req.user.fullName || 'User'}`); } catch(e) {console.error(e)}
 
     res.status(201).json({
       success: true,
@@ -120,11 +124,14 @@ exports.updateCase = async (req, res) => {
     if (status) {
       if (caseItem.status !== status) caseItem.activityLog.push(`Status Updated: ${status}`);
       caseItem.status = status;
+      // log status change
+      try { await logAction(caseItem._id, "STATUS_UPDATED", req.user, `Status changed to ${status}`); } catch(e){console.error(e)}
     }
 
     if (assignedPolice) {
       if (caseItem.assignedPolice?.toString() !== assignedPolice) {
         caseItem.activityLog.push("Officer Assignment Updated");
+        try { await logAction(caseItem._id, "CASE_ASSIGNED", req.user, `Officer assigned: ${req.user.fullName || req.user._id}`); } catch(e){console.error(e)}
       }
       caseItem.assignedPolice = assignedPolice;
     }
@@ -140,6 +147,7 @@ exports.updateCase = async (req, res) => {
       caseItem.evidenceFile = req.file.path;
       caseItem.hash = generateHash(req.file.path);
       caseItem.activityLog.push("Evidence Uploaded / Re-SEALED");
+      try { await logAction(caseItem._id, "EVIDENCE_UPLOADED", req.user, `Evidence uploaded or updated by ${req.user.fullName || req.user._id}`); } catch(e){console.error(e)}
     }
 
     caseItem.lastEditedBy = req.user._id;
@@ -207,6 +215,10 @@ exports.getCaseById = async (req, res) => {
 
 
     const caseData = singleCase.toObject();
+    // Ensure auditLogs are sorted by timestamp ascending
+    if (Array.isArray(caseData.auditLogs)) {
+      caseData.auditLogs = caseData.auditLogs.sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+    }
 
     res.status(200).json({
       success: true,
@@ -236,6 +248,20 @@ exports.uploadEvidence = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ success: false, message: "No file uploaded" });
     }
+    // if caseId provided in body, attach and log
+    const caseId = req.body.caseId || req.query.caseId;
+    if (caseId) {
+      try {
+        const caseItem = await Case.findById(caseId);
+        if (caseItem) {
+          caseItem.evidenceFile = req.file.path;
+          caseItem.hash = generateHash(req.file.path);
+          await caseItem.save();
+          await logAction(caseId, "EVIDENCE_UPLOADED", req.user, `Evidence uploaded by ${req.user.fullName || req.user._id}`);
+        }
+      } catch (e) { console.error('Error attaching evidence to case:', e); }
+    }
+
     res.status(200).json({
       success: true,
       message: "Evidence uploaded successfully",
@@ -261,7 +287,10 @@ exports.deleteCase = async (req, res) => {
 
     await caseItem.deleteOne();
 
-    res.status(200).json({ success: true, message: "Case deleted successfully" });
+  // Log deletion (performed by user/admin)
+  try { await logAction(req.params.id, "CASE_DELETED", req.user, `Case deleted by ${req.user.fullName || req.user._id}`); } catch(e){console.error(e)}
+
+  res.status(200).json({ success: true, message: "Case deleted successfully" });
   } catch (error) {
     console.error("Error deleting case:", error);
     res.status(500).json({ success: false, message: "Server error: " + error.message });
@@ -317,7 +346,9 @@ exports.assignPolice = async (req, res) => {
     
     const updatedCase = await caseItem.save();
     
-    res.status(200).json({ success: true, message: "Case ownership taken successfully.", data: updatedCase });
+  try { await logAction(caseItem._id, "CASE_ASSIGNED", req.user, `Case ownership taken by Officer ${req.user.fullName}`); } catch(e){console.error(e)}
+
+  res.status(200).json({ success: true, message: "Case ownership taken successfully.", data: updatedCase });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error: " + error.message });
   }
@@ -341,6 +372,8 @@ exports.addNote = async (req, res) => {
     });
     
     await caseItem.save();
+
+    try { await logAction(caseItem._id, "NOTE_ADDED", req.user, `Investigation note added by ${req.user.fullName || req.user._id}`); } catch(e){console.error(e)}
 
     // Re-fetch or populate to return the complete populated list
     const updatedCase = await Case.findById(req.params.id).populate("notes.createdBy", "fullName role");
@@ -370,7 +403,8 @@ exports.updateStatus = async (req, res) => {
         caseItem.status = status;
         caseItem.lastEditedBy = req.user._id;
         
-        await caseItem.save();
+    await caseItem.save();
+    try { await logAction(caseItem._id, "STATUS_UPDATED", req.user, `Status changed to ${status}`); } catch(e){console.error(e)}
     }
 
     res.status(200).json({ success: true, message: "Case status updated successfully.", data: caseItem });
@@ -397,6 +431,7 @@ exports.verifyCase = async (req, res) => {
     caseItem.activityLog.push(`Verification mathematically sealed by officer ${req.user.fullName || 'System'}`);
 
     const updatedCase = await caseItem.save();
+  try { await logAction(caseItem._id, "CASE_VERIFIED", req.user, `Case verified by ${req.user.fullName || req.user._id}`); } catch(e){console.error(e)}
     
     const populatedCase = await Case.findById(updatedCase._id)
       .populate("createdBy", "fullName role email")

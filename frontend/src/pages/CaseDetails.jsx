@@ -302,6 +302,11 @@ export default function CaseDetails() {
         createdBy
     } = caseData;
 
+    // Unified logs: prefer auditLogs objects, fallback to legacy activityLog strings
+    const logs = (caseData && caseData.auditLogs && caseData.auditLogs.length > 0)
+        ? caseData.auditLogs
+        : (activityLog || []);
+
     const handleDeleteClick = () => {
         setShowDeleteModal(true);
     };
@@ -644,16 +649,23 @@ export default function CaseDetails() {
                             </div>
 
                             <div className="relative border-l border-blue-500/20 ml-2 space-y-6 relative z-10">
-                                {activityLog && activityLog.length > 0 ? (
-                                    activityLog.map((log, index) => (
-                                        <div key={index} className="pl-4 relative">
-                                            <div className="absolute -left-1.5 top-1.5 w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_10px_#3b82f6]" />
-                                            <div className="text-xs text-slate-400 font-mono mb-1">System automated entry</div>
-                                            <div className="text-sm text-slate-200 font-mono font-bold leading-tight relative inline-block">
-                                                {log}
+                                {logs && logs.length > 0 ? (
+                                    logs.map((entry, index) => {
+                                        const isString = typeof entry === 'string';
+                                        const timestamp = isString ? null : entry.timestamp;
+                                        const message = isString ? entry : (entry.message || entry.action);
+                                        const role = isString ? 'system' : (entry.role || 'system');
+                                        return (
+                                            <div key={index} className="pl-4 relative">
+                                                <div className="absolute -left-1.5 top-1.5 w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_10px_#3b82f6]" />
+                                                <div className="text-xs text-slate-400 font-mono mb-1">{timestamp ? new Date(timestamp).toLocaleString() : 'System automated entry'}</div>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="text-sm text-slate-200 font-mono font-bold leading-tight relative inline-block">{message}</div>
+                                                    <div className="text-xs text-slate-400 font-mono">— {role.toUpperCase()}</div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 ) : (
                                     <div className="pl-4 text-xs text-slate-500 font-mono italic">No tracking data available.</div>
                                 )}
