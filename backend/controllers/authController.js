@@ -35,12 +35,12 @@ const registerUser = async (req, res) => {
 
         if (user) {
             const token = generateToken(user._id);
-            
-            // Set HTTP-only cookie
+
+
             res.cookie("token", token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === "production",
-                maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+                maxAge: 30 * 24 * 60 * 60 * 1000
             });
 
             res.status(201).json({

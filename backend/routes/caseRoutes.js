@@ -41,7 +41,7 @@ router.post("/", protect, authorizeRoles("user", "admin"), upload.single("eviden
 router.get("/", protect, authorizeRoles("user", "lawyer", "police", "admin"), getCases);
 
 
-// SSR Report Route
+
 const { renderReport } = require("../controllers/caseController");
 router.get("/report/:id", renderReport);
 

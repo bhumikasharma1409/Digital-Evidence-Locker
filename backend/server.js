@@ -19,17 +19,17 @@ connectDB();
 
 const app = express();
 
-// Configure EJS for SSR
+
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
-// Middleware
+
 app.use(cookieParser());
 app.use(session({
   secret: process.env.SESSION_SECRET || "digital-evidence-secret-key",
   resave: false,
   saveUninitialized: true,
-  cookie: { secure: false, httpOnly: true, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+  cookie: { secure: false, httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }
 }));
 
 app.use(cors({
@@ -46,12 +46,12 @@ app.use(cors({
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", // We can refine this to match our Express CORS logic
+    origin: "*",
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE"]
   }
 });
 
-// Make io accessible to our routes
+
 app.set("io", io);
 
 io.on("connection", (socket) => {
@@ -70,7 +70,7 @@ io.on("connection", (socket) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded files statically as per requirements
+
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.get("/", (req, res) => {
