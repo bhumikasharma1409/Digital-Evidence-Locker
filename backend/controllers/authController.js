@@ -11,7 +11,7 @@ const generateToken = (id) => {
 
 const registerUser = async (req, res) => {
     try {
-        const { fullName, email, password } = req.body;
+        const { fullName, email, password, locality, district, state } = req.body;
 
         if (!fullName || !email || !password) {
             return res.status(400).json({ success: false, message: "Please provide all fields" });
@@ -29,7 +29,10 @@ const registerUser = async (req, res) => {
             fullName,
             email,
             password,
-            role: req.body.role || 'user' // allow role strictly for initial setup/testing
+            role: req.body.role || 'user', // allow role strictly for initial setup/testing
+            locality,
+            district,
+            state
         });
 
         if (user) {

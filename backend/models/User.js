@@ -24,6 +24,15 @@ const userSchema = new mongoose.Schema(
             enum: ["user", "lawyer", "police", "forensic", "admin"],
             default: "user",
         },
+        locality: {
+            type: String,
+        },
+        district: {
+            type: String,
+        },
+        state: {
+            type: String,
+        },
     },
     { timestamps: true }
 );
