@@ -14,7 +14,8 @@ const {
     addRemarks,
     addLawyerNotes,
     requestAccess,
-    assignEvidence
+    assignEvidence,
+    downloadEvidence
 } = require("../controllers/evidenceController");
 
 // Configure multer for file uploads
@@ -50,5 +51,8 @@ router.put("/:id/assign", protect, authorizeRoles("police", "forensic", "admin")
 // LAWYER MUTATIONS
 router.put("/:id/note", protect, authorizeRoles("lawyer"), addLawyerNotes);
 router.put("/:id/request-access", protect, authorizeRoles("lawyer"), requestAccess);
+
+// SECURE DOWNLOAD
+router.get("/:id/download", protect, downloadEvidence);
 
 module.exports = router;

@@ -1,45 +1,13 @@
 import { useState } from "react";
 import axios from "axios";
 
-// Evidence File Renderer helper
-const renderEvidencePreview = (filePath) => {
-    if (!filePath) return null;
-    const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
-    const SERVER_URL = `${API_BASE_URL}/`;
-    const fullUrl = filePath.startsWith("http") ? filePath : SERVER_URL + filePath.replace(/\\/g, '/');
-    const ext = fullUrl.split('.').pop().toLowerCase();
-
-    if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) {
-        return (
-            <div className="relative group rounded-xl overflow-hidden bg-black" style={{ aspectRatio: '16/9' }}>
-                <img src={fullUrl} alt="Evidence" className="w-full h-full object-contain" />
-                <a href={fullUrl} target="_blank" rel="noreferrer" className="absolute top-2 right-2 px-3 py-1 bg-black/60 text-white rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity uppercase font-mono">
-                    View Raw
-                </a>
-            </div>
-        );
-    } else if (["mp4", "webm", "ogg"].includes(ext)) {
-        return (
-            <div className="relative rounded-xl overflow-hidden bg-black" style={{ aspectRatio: '16/9' }}>
-                <video src={fullUrl} controls className="w-full h-full object-contain" />
-            </div>
-        );
-    } else {
-        return (
-            <div className="flex flex-col items-center justify-center p-6 rounded-xl bg-black/40 border border-slate-700">
-                <div className="text-4xl mb-2">📄</div>
-                <a href={fullUrl} target="_blank" rel="noreferrer" className="text-teal-400 hover:text-teal-300 text-sm font-bold font-mono underline">
-                    Download File
-                </a>
-            </div>
-        );
-    }
-};
+// Evidence File Renderer helper merged into component body to use handleDownload
 
 export default function EvidenceCard({ evidence, userRole, refreshData, usersList }) {
     const [actionLoading, setActionLoading] = useState(false);
     const [remarkInput, setRemarkInput] = useState("");
     const [noteInput, setNoteInput] = useState("");
+    const [assignInput, setAssignInput] = useState("");
 
     const token = localStorage.getItem("token");
     const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
@@ -71,6 +39,75 @@ export default function EvidenceCard({ evidence, userRole, refreshData, usersLis
         const targetUserId = e.target.value;
         if (!targetUserId) return;
         await handleAction("PUT", "/share", { targetUserId }, "Evidence shared");
+    };
+
+    const handleDownload = async () => {
+        try {
+            setActionLoading(true);
+            const res = await axios.get(`${API_BASE_URL}/api/evidence/${evidence._id}/download`, {
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: "blob"
+            });
+            const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement("a");
+            link.href = blobUrl;
+            link.setAttribute("download", evidence.originalName || "evidence.bin");
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+        } catch (err) {
+            console.error(err);
+            alert("Failed to securely download artifact.");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const renderEvidencePreview = (filePath) => {
+        if (evidence.hasAccess === false) {
+            return (
+                <div className="flex flex-col items-center justify-center p-8 rounded-xl bg-black/40 border border-slate-700/50 relative overflow-hidden mt-4">
+                    <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,0.02)_10px,rgba(255,255,255,0.02)_20px)]" />
+                    <div className="text-4xl mb-4 opacity-50">🔒</div>
+                    <h3 className="text-red-400 font-bold font-mono tracking-widest relative z-10 mb-2">ACCESS RESTRICTED</h3>
+                    <p className="text-slate-500 text-xs font-mono mb-4 text-center">You do not have clearance to view this vault artifact.</p>
+                    <button disabled={actionLoading} onClick={() => handleAction("PUT", "/request-access")} className="px-5 py-2 bg-slate-800 text-white hover:bg-slate-700 rounded-lg text-sm font-bold tracking-wider font-mono border border-slate-600 transition-colors shadow-lg relative z-10 hover:border-blue-400">
+                        REQUEST SECURE ACCESS
+                    </button>
+                </div>
+            );
+        }
+
+        if (!filePath) return null;
+        const SERVER_URL = `${API_BASE_URL}/`;
+        const fullUrl = filePath.startsWith("http") ? filePath : SERVER_URL + filePath.replace(/\\/g, '/');
+        const ext = fullUrl.split('.').pop().toLowerCase();
+
+        if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) {
+            return (
+                <div className="relative group rounded-xl overflow-hidden bg-black mt-4" style={{ aspectRatio: '16/9' }}>
+                    <img src={fullUrl} alt="Evidence" className="w-full h-full object-contain" />
+                    <button onClick={handleDownload} className="absolute top-2 right-2 px-3 py-1 bg-black/60 text-white rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity uppercase font-mono border border-white/20 hover:bg-black/80">
+                        Download Securely
+                    </button>
+                </div>
+            );
+        } else if (["mp4", "webm", "ogg"].includes(ext)) {
+            return (
+                <div className="relative rounded-xl overflow-hidden bg-black mt-4" style={{ aspectRatio: '16/9' }}>
+                    <video src={fullUrl} controls className="w-full h-full object-contain" />
+                </div>
+            );
+        } else {
+            return (
+                <div className="flex flex-col items-center justify-center p-6 rounded-xl bg-black/40 border border-slate-700 mt-4">
+                    <div className="text-4xl mb-2">📄</div>
+                    <button onClick={handleDownload} className="text-teal-400 hover:text-teal-300 text-sm font-bold font-mono underline">
+                        Download Secure File
+                    </button>
+                </div>
+            );
+        }
     };
 
     return (
@@ -149,6 +186,18 @@ export default function EvidenceCard({ evidence, userRole, refreshData, usersLis
                                 Add Log
                             </button>
                         </div>
+                        <div className="flex gap-2 mt-2">
+                            <input 
+                                type="text" 
+                                value={assignInput}
+                                onChange={(e) => setAssignInput(e.target.value)}
+                                placeholder="Enter Target Case ID..."
+                                className="flex-1 bg-black/50 border border-blue-500/30 text-blue-400 px-3 py-1.5 text-xs rounded font-mono"
+                            />
+                            <button disabled={actionLoading || !assignInput} onClick={() => { handleAction("PUT", "/assign", { targetCaseId: assignInput }); setAssignInput(""); }} className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs font-mono rounded border border-blue-500/50 hover:bg-blue-500/30">
+                                Assign Case
+                            </button>
+                        </div>
                     </div>
                 )}
 
@@ -156,9 +205,11 @@ export default function EvidenceCard({ evidence, userRole, refreshData, usersLis
                 {/* --- LAWYER CONTROLS --- */}
                 {userRole === "lawyer" && (
                     <div className="space-y-4">
-                        <a href={evidence.filePath.startsWith("http") ? evidence.filePath : `${API_BASE_URL}/${evidence.filePath.replace(/\\/g, '/')}`} target="_blank" rel="noreferrer" className="inline-block px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/50 text-[10px] rounded uppercase font-bold font-mono hover:bg-blue-500/20">
-                            Download Raw
-                        </a>
+                        {evidence.hasAccess !== false && (
+                            <button onClick={handleDownload} className="inline-block px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/50 text-[10px] rounded uppercase font-bold font-mono hover:bg-blue-500/20">
+                                Download Raw
+                            </button>
+                        )}
                         <div className="flex gap-2">
                             <input 
                                 type="text" 

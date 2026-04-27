@@ -67,19 +67,25 @@ exports.getEvidenceForCase = async (req, res) => {
         // Filter based on roles
         const filtered = evidenceList.map(ev => {
             const evObj = ev.toObject();
+            evObj.hasAccess = true;
             if (req.user.role === "lawyer") {
                 // Return lawyerNotes only for the specific lawyer
                 evObj.lawyerNotes = ev.lawyerNotes.filter(n => n.lawyerId.toString() === req.user._id.toString());
+                
+                const hasExplicitAccess = ev.sharedWithLawyers.some(l => l._id.toString() === req.user._id.toString());
+                if (!hasExplicitAccess && ev.status !== "verified") {
+                    evObj.hasAccess = false;
+                    evObj.filePath = null;
+                    evObj.hash = null;
+                    evObj.originalName = "CLASSIFIED MATERIAL";
+                }
             }
             return evObj;
         }).filter(ev => {
             if (req.user.role === "admin" || req.user.role === "forensic") return true;
             if (req.user.role === "user") return ev.uploadedBy._id.toString() === req.user._id.toString();
             if (req.user.role === "police") return true; // assuming police can see to verify
-            if (req.user.role === "lawyer") {
-                // Must be shared explicitly
-                return ev.sharedWithLawyers.some(l => l._id.toString() === req.user._id.toString()) || ev.status === "verified";
-            }
+            if (req.user.role === "lawyer") return true; // lawyer sees it to request access
             return false;
         });
 
@@ -265,6 +271,37 @@ exports.assignEvidence = async (req, res) => {
         await pushAudit(targetCaseId, `Evidence [${evidence.originalName}] officially accepted onto this node.`);
 
         res.status(200).json({ success: true, data: evidence });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+exports.downloadEvidence = async (req, res) => {
+    try {
+        const evidence = await Evidence.findById(req.params.id);
+        if (!evidence) return res.status(404).json({ success: false, message: "Not found" });
+
+        // Access checks
+        let hasAccess = false;
+        if (["admin", "forensic", "police"].includes(req.user.role)) hasAccess = true;
+        if (req.user.role === "user" && evidence.uploadedBy.toString() === req.user._id.toString()) hasAccess = true;
+        if (req.user.role === "lawyer") {
+            const isShared = evidence.sharedWithLawyers.includes(req.user._id);
+            if (isShared || evidence.status === "verified") hasAccess = true;
+        }
+
+        if (!hasAccess) {
+            return res.status(403).json({ success: false, message: "Unauthorized to access this vault object directly." });
+        }
+
+        const path = require("path");
+        const fullPath = path.resolve(__dirname, "..", evidence.filePath);
+        
+        evidence.activityLog.push(`RAW BINARY FETCHED SECURELY by ${req.user.fullName}`);
+        await evidence.save();
+        await pushAudit(evidence.caseId, `Evidence source binary directly fetched by ${req.user.fullName}`);
+
+        res.download(fullPath, evidence.originalName || "evidence.bin");
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
