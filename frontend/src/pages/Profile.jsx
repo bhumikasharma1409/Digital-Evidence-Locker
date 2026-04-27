@@ -128,7 +128,7 @@ export default function Profile() {
     }
 
     // Default mock data just in case structure differs
-    const displayUser = user || { fullName: "UNKNOWN AGENT", email: "REDACTED", role: "user" };
+    const displayUser = user || { fullName: "UNKNOWN AGENT", email: "REDACTED", role: "user", locality: "-", district: "-", state: "-" };
 
     return (
         <div className="min-h-screen w-full bg-[#0a0f1a] text-slate-100 overflow-x-hidden relative flex flex-col pt-12 pb-32" style={{ fontFamily: "system-ui, sans-serif" }}>
@@ -205,6 +205,22 @@ export default function Profile() {
                         <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-left">
                             <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1" style={{ fontFamily: "'Share Tech Mono', monospace" }}>AGENT IDENTIFIER ID</div>
                             <div className="text-sm text-slate-200" style={{ fontFamily: "monospace" }}>{displayUser._id || "AWAITING_GEN"}</div>
+                        </div>
+                    </div>
+
+                    {/* Location Info Grid */}
+                    <div className="w-full mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-left">
+                            <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1" style={{ fontFamily: "'Share Tech Mono', monospace" }}>LOCALITY</div>
+                            <div className="text-sm text-slate-200" style={{ fontFamily: "monospace" }}>{displayUser.locality || "-"}</div>
+                        </div>
+                        <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-left">
+                            <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1" style={{ fontFamily: "'Share Tech Mono', monospace" }}>DISTRICT</div>
+                            <div className="text-sm text-slate-200" style={{ fontFamily: "monospace" }}>{displayUser.district || "-"}</div>
+                        </div>
+                        <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-left">
+                            <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1" style={{ fontFamily: "'Share Tech Mono', monospace" }}>STATE</div>
+                            <div className="text-sm text-slate-200" style={{ fontFamily: "monospace" }}>{displayUser.state || "-"}</div>
                         </div>
                     </div>
 

@@ -40,7 +40,10 @@ export default function Register() {
         fullName: "",
         email: "",
         password: "",
-        confirmPassword: ""
+        confirmPassword: "",
+        locality: "",
+        district: "",
+        state: ""
     });
 
     const [errors, setErrors] = useState({});
@@ -48,7 +51,22 @@ export default function Register() {
     const [serverError, setServerError] = useState("");
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+
+        // Optional: auto-capitalize first letter of each word for location fields
+        const capitalizeWords = (str) => {
+            return String(str)
+                .split(" ")
+                .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : ""))
+                .join(" ");
+        };
+
+        let newValue = value;
+        if (["locality", "district", "state"].includes(name)) {
+            newValue = capitalizeWords(value.trimStart());
+        }
+
+        setFormData({ ...formData, [name]: newValue });
         // Clear error for the specific field when user starts typing
         if (errors[e.target.name]) {
             setErrors({ ...errors, [e.target.name]: null });
@@ -77,6 +95,11 @@ export default function Register() {
             newErrors.confirmPassword = "Passwords do not match";
         }
 
+        // Location fields validation
+        if (!formData.locality || !String(formData.locality).trim()) newErrors.locality = "Locality is required";
+        if (!formData.district || !String(formData.district).trim()) newErrors.district = "District is required";
+        if (!formData.state || !String(formData.state).trim()) newErrors.state = "State is required";
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -95,11 +118,14 @@ export default function Register() {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({
-                    fullName: formData.fullName,
-                    email: formData.email,
-                    password: formData.password
-                }),
+                    body: JSON.stringify({
+                        fullName: formData.fullName,
+                        email: formData.email,
+                        password: formData.password,
+                        locality: formData.locality,
+                        district: formData.district,
+                        state: formData.state,
+                    }),
             });
 
             const data = await response.json();
@@ -242,6 +268,57 @@ export default function Register() {
                             style={{ background: "rgba(0,0,0,0.4)", border: `1px solid ${errors.confirmPassword ? 'rgba(239,68,68,0.5)' : 'rgba(20,210,160,0.3)'}`, color: "#14d2a0", fontFamily: "'Share Tech Mono', monospace" }}
                         />
                         {errors.confirmPassword && <p className="mt-1 text-xs text-red-400">{errors.confirmPassword}</p>}
+                    </div>
+
+                    {/* Locality Field */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 tracking-widest mb-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                            LOCALITY
+                        </label>
+                        <input
+                            type="text"
+                            name="locality"
+                            value={formData.locality}
+                            onChange={handleChange}
+                            placeholder="Enter your locality"
+                            className={`w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition-all placeholder:text-slate-600 focus:ring-1 ${errors.locality ? "border-red-500/50 focus:ring-red-500/50" : "border-teal-500/30 focus:ring-teal-400/50"}`}
+                            style={{ background: "rgba(0,0,0,0.4)", border: `1px solid ${errors.locality ? 'rgba(239,68,68,0.5)' : 'rgba(20,210,160,0.3)'}`, color: "#14d2a0", fontFamily: "'Share Tech Mono', monospace" }}
+                        />
+                        {errors.locality && <p className="mt-1 text-xs text-red-400">{errors.locality}</p>}
+                    </div>
+
+                    {/* District Field */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 tracking-widest mb-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                            DISTRICT
+                        </label>
+                        <input
+                            type="text"
+                            name="district"
+                            value={formData.district}
+                            onChange={handleChange}
+                            placeholder="Enter your district"
+                            className={`w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition-all placeholder:text-slate-600 focus:ring-1 ${errors.district ? "border-red-500/50 focus:ring-red-500/50" : "border-teal-500/30 focus:ring-teal-400/50"}`}
+                            style={{ background: "rgba(0,0,0,0.4)", border: `1px solid ${errors.district ? 'rgba(239,68,68,0.5)' : 'rgba(20,210,160,0.3)'}`, color: "#14d2a0", fontFamily: "'Share Tech Mono', monospace" }}
+                        />
+                        {errors.district && <p className="mt-1 text-xs text-red-400">{errors.district}</p>}
+                    </div>
+
+                    {/* State Field */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 tracking-widest mb-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                            STATE
+                        </label>
+                        <input
+                            type="text"
+                            name="state"
+                            value={formData.state}
+                            onChange={handleChange}
+                            placeholder="Enter your state"
+                            className={`w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition-all placeholder:text-slate-600 focus:ring-1 ${errors.state ? "border-red-500/50 focus:ring-red-500/50" : "border-teal-500/30 focus:ring-teal-400/50"}`}
+                            style={{ background: "rgba(0,0,0,0.4)", border: `1px solid ${errors.state ? 'rgba(239,68,68,0.5)' : 'rgba(20,210,160,0.3)'}`, color: "#14d2a0", fontFamily: "'Share Tech Mono', monospace" }}
+                        />
+                        {errors.state && <p className="mt-1 text-xs text-red-400">{errors.state}</p>}
                     </div>
 
                     {/* Submit Button */}
