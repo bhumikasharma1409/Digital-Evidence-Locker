@@ -10,13 +10,27 @@ const caseSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User"
   },
-  assignedOfficer: {
+  locality: {
+    type: String,
+    required: true
+  },
+  district: {
+    type: String,
+    required: true
+  },
+  state: {
+    type: String,
+    required: true
+  },
+  assignedPolice: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User"
+    ref: "User",
+    default: null
   },
   assignedLawyer: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User"
+    ref: "User",
+    required: true
   },
   editHistory: [
     {
@@ -49,7 +63,27 @@ const caseSchema = new mongoose.Schema({
   },
   activityLog: [{
     type: String
-  }]
+  }],
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
+  verifiedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null
+  },
+  verifiedAt: {
+    type: Date,
+    default: null
+  },
+  notes: [
+    {
+      text: { type: String, required: true },
+      createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+      timestamp: { type: Date, default: Date.now }
+    }
+  ]
 }, {
   timestamps: true
 });

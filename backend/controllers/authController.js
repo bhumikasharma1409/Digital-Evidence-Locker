@@ -42,6 +42,9 @@ const registerUser = async (req, res) => {
                 fullName: user.fullName,
                 email: user.email,
                 role: user.role,
+                locality: user.locality,
+                district: user.district,
+                state: user.state,
                 token: generateToken(user._id),
             });
         } else {
@@ -67,6 +70,9 @@ const loginUser = async (req, res) => {
                 fullName: user.fullName,
                 email: user.email,
                 role: user.role, // Return the role to the frontend
+                locality: user.locality,
+                district: user.district,
+                state: user.state,
                 token: generateToken(user._id),
             });
         } else {
@@ -91,6 +97,9 @@ const getUserProfile = async (req, res) => {
                 fullName: user.fullName,
                 email: user.email,
                 role: user.role,
+                locality: user.locality,
+                district: user.district,
+                state: user.state,
             });
         } else {
             res.status(404).json({ success: false, message: "User not found" });
@@ -109,9 +118,56 @@ const getAllUsers = async (req, res) => {
     }
 };
 
+const updateUserProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+
+        if (user) {
+            const updatedUser = await User.findByIdAndUpdate(
+                req.user._id,
+                {
+                    $set: {
+                        fullName: req.body.fullName || user.fullName,
+                        locality: req.body.locality !== undefined ? req.body.locality : user.locality,
+                        district: req.body.district !== undefined ? req.body.district : user.district,
+                        state: req.body.state !== undefined ? req.body.state : user.state,
+                    }
+                },
+                { new: true, runValidators: true }
+            );
+
+            res.json({
+                success: true,
+                _id: updatedUser._id,
+                fullName: updatedUser.fullName,
+                email: updatedUser.email,
+                role: updatedUser.role,
+                locality: updatedUser.locality,
+                district: updatedUser.district,
+                state: updatedUser.state
+            });
+        } else {
+            res.status(404).json({ success: false, message: "User not found" });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Server error updating profile", error: error.message });
+    }
+};
+
+const getLawyers = async (req, res) => {
+    try {
+        const lawyers = await User.find({ role: "lawyer" }).select("fullName email _id");
+        res.json({ success: true, data: lawyers });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Server error fetching lawyers", error: error.message });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
     getUserProfile,
     getAllUsers,
+    updateUserProfile,
+    getLawyers,
 };

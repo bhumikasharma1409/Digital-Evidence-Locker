@@ -50,4 +50,29 @@ const authorizeRoles = (...roles) => {
     };
 };
 
-module.exports = { protect, authorizeRoles };
+const Case = require("../models/case.model");
+
+const requirePolice = authorizeRoles("police");
+
+const requireAssignedPolice = async (req, res, next) => {
+    try {
+        if (!req.user || req.user.role !== "police") {
+            return res.status(403).json({ success: false, message: "Only police can access this route" });
+        }
+
+        const caseItem = await Case.findById(req.params.id);
+        if (!caseItem) {
+            return res.status(404).json({ success: false, message: "Case not found" });
+        }
+
+        if (!caseItem.assignedPolice || caseItem.assignedPolice.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ success: false, message: "You are not the assigned police officer for this case" });
+        }
+
+        next();
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Server error in authorization" });
+    }
+};
+
+module.exports = { protect, authorizeRoles, requirePolice, requireAssignedPolice };

@@ -82,6 +82,7 @@ export default function Dashboard() {
     const navigate = useNavigate();
     const [cases, setCases] = useState([]);
     const [userName, setUserName] = useState("");
+    const [userRole, setUserRole] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -106,6 +107,7 @@ export default function Dashboard() {
                     });
                     if (profileRes.data && profileRes.data.fullName) {
                         setUserName(profileRes.data.fullName);
+                        setUserRole(profileRes.data.role);
                     }
                 } catch (profErr) {
                     console.error("Failed to fetch user profile name:", profErr);
@@ -138,15 +140,33 @@ export default function Dashboard() {
         fetchData();
     }, []);
 
+    const handleTakeOwnership = async (caseId) => {
+        try {
+            const token = localStorage.getItem("token");
+            const response = await axios.patch(`${API_BASE_URL}/api/cases/${caseId}/assign-police`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (response.data.success) {
+                // Refresh cases
+                setCases(cases.map(c => c._id === caseId ? response.data.data : c));
+            }
+        } catch (err) {
+            console.error("Error taking ownership:", err);
+            alert(err.response?.data?.message || "Failed to take ownership");
+        }
+    };
+
     // Stats Calculation
     const totalCases = cases.length;
     const closedCases = cases.filter(c => c.status === "CLOSED").length;
     const activeCases = totalCases - closedCases;
 
-    // Recent 4 Cases
     const recentCases = [...cases]
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, 4);
+    
+    const unclaimedCases = cases.filter(c => !c.assignedPolice);
+    const claimedCases = cases.filter(c => c.assignedPolice);
 
     const statusColors = {
         PENDING: "yellow",
@@ -225,41 +245,110 @@ export default function Dashboard() {
                     </button>
                 </div>
 
-                {/* Recent Cases */}
-                <div className="mb-10" style={{ animation: "fadeSlideUp 0.8s ease 0.3s both" }}>
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-xl font-bold text-white tracking-widest uppercase" style={{ fontFamily: "'Share Tech Mono', monospace" }}>Recent Cases</h2>
-                        <button onClick={() => navigate("/my-cases")} className="text-xs text-teal-400 hover:text-teal-300 font-bold tracking-widest uppercase">View All →</button>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4">
-                        {recentCases.length > 0 ? recentCases.map((c, i) => (
-                            <div
-                                key={c._id}
-                                onClick={() => navigate(`/case/${c._id}`)}
-                                className="p-5 rounded-xl border border-white/5 hover:border-teal-500/30 transition-all cursor-pointer group flex items-center justify-between"
-                                style={{ background: "rgba(255,255,255,0.02)" }}
-                            >
-                                <div className="flex flex-col gap-1">
-                                    <div className="flex items-center gap-3">
-                                        <h3 className="font-bold text-slate-100 group-hover:text-teal-400 transition-colors" style={{ fontFamily: "'Share Tech Mono', monospace" }}>{c.title}</h3>
-                                        <HexBadge label={c.status} color={statusColors[c.status] || "teal"} />
+                {/* Case Sections */}
+                {userRole === "police" ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10" style={{ animation: "fadeSlideUp 0.8s ease 0.3s both" }}>
+                        {/* Unclaimed Cases */}
+                        <div>
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-bold text-yellow-400 tracking-widest uppercase" style={{ fontFamily: "'Share Tech Mono', monospace" }}>🟡 Unclaimed Cases</h2>
+                            </div>
+                            <div className="grid grid-cols-1 gap-4">
+                                {unclaimedCases.length > 0 ? unclaimedCases.map((c) => (
+                                    <div key={c._id} onClick={() => navigate(`/case/${c._id}`)} className="p-5 rounded-xl border border-white/5 hover:border-teal-500/30 transition-all cursor-pointer group flex flex-col justify-between" style={{ background: "rgba(255,255,255,0.02)" }}>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="font-bold text-slate-100 group-hover:text-teal-400 transition-colors truncate w-2/3" style={{ fontFamily: "'Share Tech Mono', monospace" }}>{c.title}</h3>
+                                            <div className="flex gap-2">
+                                                <HexBadge label={c.status} color={statusColors[c.status] || "teal"} />
+                                                <HexBadge label={c.isVerified ? "Verified" : "Not Verified"} color={c.isVerified ? "green" : "yellow"} />
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between mt-2">
+                                            <span className="text-[10px] text-slate-500 font-mono tracking-widest">ID_{c._id.slice(-6).toUpperCase()}</span>
+                                            <button onClick={(e) => { e.stopPropagation(); handleTakeOwnership(c._id); }} className="px-3 py-1 rounded-md border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 transition-colors text-[10px] font-bold tracking-widest uppercase">
+                                                Take Ownership
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-4 text-[10px] text-slate-500 font-mono tracking-widest">
-                                        <span>ID_{c._id.slice(-6).toUpperCase()}</span>
-                                        <span>LOGGED_{new Date(c.createdAt).toLocaleDateString()}</span>
+                                )) : (
+                                    <div className="py-8 text-center rounded-2xl border border-dashed border-white/10 opacity-50 flex flex-col items-center gap-3">
+                                        <span className="text-xl">📭</span>
+                                        <span className="text-xs font-mono tracking-widest uppercase">No unclaimed cases</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Claimed Cases */}
+                        <div>
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-bold text-blue-400 tracking-widest uppercase" style={{ fontFamily: "'Share Tech Mono', monospace" }}>🔵 Claimed Cases</h2>
+                            </div>
+                            <div className="grid grid-cols-1 gap-4">
+                                {claimedCases.length > 0 ? claimedCases.map((c) => (
+                                    <div key={c._id} onClick={() => navigate(`/case/${c._id}`)} className="p-5 rounded-xl border border-white/5 hover:border-teal-500/30 transition-all cursor-pointer group flex flex-col justify-between" style={{ background: "rgba(255,255,255,0.02)" }}>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="font-bold text-slate-100 group-hover:text-teal-400 transition-colors truncate w-2/3" style={{ fontFamily: "'Share Tech Mono', monospace" }}>{c.title}</h3>
+                                            <div className="flex gap-2">
+                                                <HexBadge label={c.status} color={statusColors[c.status] || "teal"} />
+                                                <HexBadge label={c.isVerified ? "Verified" : "Not Verified"} color={c.isVerified ? "green" : "yellow"} />
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between mt-2">
+                                            <span className="text-[10px] text-slate-500 font-mono tracking-widest">ID_{c._id.slice(-6).toUpperCase()}</span>
+                                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest border border-slate-700/50 px-2 py-1 rounded">
+                                                Assigned: {c.assignedPolice?.fullName || "Officer"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )) : (
+                                    <div className="py-8 text-center rounded-2xl border border-dashed border-white/10 opacity-50 flex flex-col items-center gap-3">
+                                        <span className="text-xl">📭</span>
+                                        <span className="text-xs font-mono tracking-widest uppercase">No claimed cases</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="mb-10" style={{ animation: "fadeSlideUp 0.8s ease 0.3s both" }}>
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold text-white tracking-widest uppercase" style={{ fontFamily: "'Share Tech Mono', monospace" }}>Recent Cases</h2>
+                            <button onClick={() => navigate("/my-cases")} className="text-xs text-teal-400 hover:text-teal-300 font-bold tracking-widest uppercase">View All →</button>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4">
+                            {recentCases.length > 0 ? recentCases.map((c, i) => (
+                                <div
+                                    key={c._id}
+                                    onClick={() => navigate(`/case/${c._id}`)}
+                                    className="p-5 rounded-xl border border-white/5 hover:border-teal-500/30 transition-all cursor-pointer group flex items-center justify-between"
+                                    style={{ background: "rgba(255,255,255,0.02)" }}
+                                >
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-3">
+                                            <h3 className="font-bold text-slate-100 group-hover:text-teal-400 transition-colors" style={{ fontFamily: "'Share Tech Mono', monospace" }}>{c.title}</h3>
+                                            <HexBadge label={c.status} color={statusColors[c.status] || "teal"} />
+                                            <HexBadge label={c.isVerified ? "Verified" : "Not Verified"} color={c.isVerified ? "green" : "yellow"} />
+                                        </div>
+                                        <div className="flex items-center gap-4 text-[10px] text-slate-500 font-mono tracking-widest">
+                                            <span>ID_{c._id.slice(-6).toUpperCase()}</span>
+                                            <span>LOGGED_{new Date(c.createdAt).toLocaleDateString()}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-teal-500 opacity-0 group-hover:opacity-100 transition-opacity">→</div>
                                     </div>
                                 </div>
-                                <div className="text-teal-500 opacity-0 group-hover:opacity-100 transition-opacity">→</div>
-                            </div>
-                        )) : (
-                            <div className="py-12 text-center rounded-2xl border border-dashed border-white/10 opacity-50 flex flex-col items-center gap-3">
-                                <span className="text-2xl">📭</span>
-                                <span className="text-xs font-mono tracking-widest uppercase">No cases detected in repository</span>
-                            </div>
-                        )}
+                            )) : (
+                                <div className="py-12 text-center rounded-2xl border border-dashed border-white/10 opacity-50 flex flex-col items-center gap-3">
+                                    <span className="text-2xl">📭</span>
+                                    <span className="text-xs font-mono tracking-widest uppercase">No cases detected in repository</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Security Info Card */}
                 <div className="p-8 rounded-2xl border border-blue-500/20 text-center relative overflow-hidden" style={{ background: "rgba(59,130,246,0.05)", animation: "fadeSlideUp 0.8s ease 0.4s both" }}>

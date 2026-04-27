@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import Toast from "../components/Toast";
 
 // --- Matrix Rain Canvas ---
 function MatrixRain() {
@@ -39,6 +41,10 @@ export default function Profile() {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [editData, setEditData] = useState({ fullName: "", locality: "", district: "", state: "" });
+    const [toastMessage, setToastMessage] = useState(null);
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -72,6 +78,12 @@ export default function Profile() {
 
                 if (data.success) {
                     setUser(data);
+                    setEditData({
+                        fullName: data.fullName || "",
+                        locality: data.locality || "",
+                        district: data.district || "",
+                        state: data.state || ""
+                    });
                 } else {
                     throw new Error(data.message || "Failed to load user profile");
                 }
@@ -96,6 +108,31 @@ export default function Profile() {
     const handleLogout = () => {
         localStorage.removeItem("token");
         navigate("/");
+    };
+
+    const handleSaveProfile = async () => {
+        try {
+            setSaving(true);
+            const token = localStorage.getItem("token");
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+            
+            const response = await axios.put(`${API_BASE_URL}/api/auth/update-profile`, editData, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            
+            if (response.data.success) {
+                setUser(response.data);
+                setIsEditing(false);
+                setToastMessage({ text: "Profile Updated", type: "success" });
+            }
+        } catch (err) {
+            console.error("Error updating profile:", err.response?.data || err);
+            setToastMessage({ text: err.response?.data?.message || "Failed to update profile.", type: "error" });
+        } finally {
+            setSaving(false);
+        }
     };
 
     if (loading) {
@@ -157,13 +194,24 @@ export default function Profile() {
                         <span>←</span> BACK TO TERMINAL
                     </button>
 
-                    <button
-                        onClick={handleLogout}
-                        className="px-4 py-2 rounded-lg border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors text-xs font-bold tracking-widest uppercase"
-                        style={{ fontFamily: "'Share Tech Mono', monospace" }}
-                    >
-                        DISCONNECT LOGIC
-                    </button>
+                    <div className="flex gap-4">
+                        {!isEditing && (
+                            <button
+                                onClick={() => setIsEditing(true)}
+                                className="px-4 py-2 rounded-lg border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 transition-colors text-xs font-bold tracking-widest uppercase"
+                                style={{ fontFamily: "'Share Tech Mono', monospace" }}
+                            >
+                                EDIT PROFILE
+                            </button>
+                        )}
+                        <button
+                            onClick={handleLogout}
+                            className="px-4 py-2 rounded-lg border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors text-xs font-bold tracking-widest uppercase"
+                            style={{ fontFamily: "'Share Tech Mono', monospace" }}
+                        >
+                            DISCONNECT LOGIC
+                        </button>
+                    </div>
                 </div>
 
                 {/* Profile Card */}
@@ -187,9 +235,19 @@ export default function Profile() {
                         ── AUTHORIZED PERSONNEL ──
                     </div>
 
-                    <h1 className="text-4xl font-black text-white mb-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
-                        {displayUser.fullName}
-                    </h1>
+                    {isEditing ? (
+                        <input
+                            type="text"
+                            value={editData.fullName}
+                            onChange={(e) => setEditData({ ...editData, fullName: e.target.value })}
+                            className="text-2xl md:text-3xl font-black text-center bg-black/60 border border-teal-500/40 text-teal-400 px-3 py-1 rounded focus:outline-none focus:border-teal-400 mb-2 w-full max-w-sm"
+                            style={{ fontFamily: "'Share Tech Mono', monospace" }}
+                        />
+                    ) : (
+                        <h1 className="text-4xl font-black text-white mb-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                            {displayUser.fullName}
+                        </h1>
+                    )}
 
                     <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-teal-500/30 bg-teal-500/10 text-teal-400 text-xs font-bold tracking-widest uppercase mb-8">
                         <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
@@ -212,21 +270,51 @@ export default function Profile() {
                     <div className="w-full mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-left">
                             <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1" style={{ fontFamily: "'Share Tech Mono', monospace" }}>LOCALITY</div>
-                            <div className="text-sm text-slate-200" style={{ fontFamily: "monospace" }}>{displayUser.locality || "-"}</div>
+                            {isEditing ? (
+                                <input type="text" value={editData.locality} onChange={(e) => setEditData({...editData, locality: e.target.value})} className="w-full bg-black/60 border border-teal-500/40 text-teal-400 text-sm px-2 py-1 rounded focus:outline-none focus:border-teal-400 font-mono" />
+                            ) : (
+                                <div className="text-sm text-slate-200" style={{ fontFamily: "monospace" }}>{displayUser.locality || "-"}</div>
+                            )}
                         </div>
                         <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-left">
                             <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1" style={{ fontFamily: "'Share Tech Mono', monospace" }}>DISTRICT</div>
-                            <div className="text-sm text-slate-200" style={{ fontFamily: "monospace" }}>{displayUser.district || "-"}</div>
+                            {isEditing ? (
+                                <input type="text" value={editData.district} onChange={(e) => setEditData({...editData, district: e.target.value})} className="w-full bg-black/60 border border-teal-500/40 text-teal-400 text-sm px-2 py-1 rounded focus:outline-none focus:border-teal-400 font-mono" />
+                            ) : (
+                                <div className="text-sm text-slate-200" style={{ fontFamily: "monospace" }}>{displayUser.district || "-"}</div>
+                            )}
                         </div>
                         <div className="p-4 rounded-xl border border-white/5 bg-white/5 text-left">
                             <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1" style={{ fontFamily: "'Share Tech Mono', monospace" }}>STATE</div>
-                            <div className="text-sm text-slate-200" style={{ fontFamily: "monospace" }}>{displayUser.state || "-"}</div>
+                            {isEditing ? (
+                                <input type="text" value={editData.state} onChange={(e) => setEditData({...editData, state: e.target.value})} className="w-full bg-black/60 border border-teal-500/40 text-teal-400 text-sm px-2 py-1 rounded focus:outline-none focus:border-teal-400 font-mono" />
+                            ) : (
+                                <div className="text-sm text-slate-200" style={{ fontFamily: "monospace" }}>{displayUser.state || "-"}</div>
+                            )}
                         </div>
                     </div>
+
+                    {isEditing && (
+                        <div className="w-full mt-6 flex justify-center gap-4">
+                            <button onClick={() => {setIsEditing(false); setEditData({ fullName: displayUser.fullName || "", locality: displayUser.locality || "", district: displayUser.district || "", state: displayUser.state || "" });}} disabled={saving} className="px-6 py-2 rounded-lg border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors text-xs font-bold tracking-widest uppercase" style={{ fontFamily: "'Share Tech Mono', monospace" }}>CANCEL</button>
+                            <button onClick={handleSaveProfile} disabled={saving} className="px-6 py-2 rounded-lg border border-teal-500/30 bg-teal-500/10 text-teal-400 hover:bg-teal-500/20 transition-colors text-xs font-bold tracking-widest uppercase flex items-center gap-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                                {saving ? <span className="animate-spin inline-block">⏳</span> : null}
+                                SAVE CHANGES
+                            </button>
+                        </div>
+                    )}
 
                 </div>
 
             </div>
+
+            {toastMessage && (
+                <Toast
+                    message={toastMessage.text}
+                    type={toastMessage.type}
+                    onClose={() => setToastMessage(null)}
+                />
+            )}
         </div>
     );
 }

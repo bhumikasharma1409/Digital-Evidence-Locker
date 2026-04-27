@@ -43,7 +43,8 @@ export default function Register() {
         confirmPassword: "",
         locality: "",
         district: "",
-        state: ""
+        state: "",
+        role: "user"
     });
 
     const [errors, setErrors] = useState({});
@@ -125,6 +126,7 @@ export default function Register() {
                         locality: formData.locality,
                         district: formData.district,
                         state: formData.state,
+                        role: formData.role
                     }),
             });
 
@@ -319,6 +321,25 @@ export default function Register() {
                             style={{ background: "rgba(0,0,0,0.4)", border: `1px solid ${errors.state ? 'rgba(239,68,68,0.5)' : 'rgba(20,210,160,0.3)'}`, color: "#14d2a0", fontFamily: "'Share Tech Mono', monospace" }}
                         />
                         {errors.state && <p className="mt-1 text-xs text-red-400">{errors.state}</p>}
+                    </div>
+
+                    {/* Role Selection */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 tracking-widest mb-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                            CLEARANCE LEVEL (ROLE)
+                        </label>
+                        <select
+                            name="role"
+                            value={formData.role}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition-all focus:ring-1 border-teal-500/30 focus:ring-teal-400/50"
+                            style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(20,210,160,0.3)", color: "#14d2a0", fontFamily: "'Share Tech Mono', monospace" }}
+                        >
+                            <option value="user">User (Complainant)</option>
+                            <option value="police">Police Officer</option>
+                            <option value="lawyer">Lawyer</option>
+                            <option value="admin">System Admin</option>
+                        </select>
                     </div>
 
                     {/* Submit Button */}

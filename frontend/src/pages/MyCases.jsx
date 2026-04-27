@@ -71,6 +71,7 @@ export default function MyCases() {
   const navigate = useNavigate();
 
   const [cases, setCases] = useState([]);
+  const [userRole, setUserRole] = useState("");
   const [hoveredCase, setHoveredCase] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
@@ -87,6 +88,19 @@ export default function MyCases() {
         }
 
         const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+        
+        try {
+          const profileRes = await fetch(`${API_BASE_URL}/api/auth/profile`, {
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+          const profileData = await profileRes.json();
+          if (profileData && profileData.role) {
+            setUserRole(profileData.role);
+          }
+        } catch (e) {
+          console.error("Failed to fetch profile");
+        }
+
         const res = await fetch(`${API_BASE_URL}/api/cases`, {
           headers: {
             "Authorization": `Bearer ${token}`
@@ -121,6 +135,28 @@ export default function MyCases() {
   const handleDeleteClick = (e, id) => {
     e.stopPropagation(); // Prevents case link navigation when hitting the delete button
     setDeleteTargetId(id);
+  };
+
+  const handleTakeOwnership = async (e, caseId) => {
+    e.stopPropagation();
+    try {
+        const token = localStorage.getItem("token");
+        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+        const res = await fetch(`${API_BASE_URL}/api/cases/${caseId}/assign-police`, {
+            method: "PATCH",
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+            setCases(cases.map(c => c._id === caseId ? data.data : c));
+            setToastMessage({ text: "Ownership taken successfully!", type: "success" });
+        } else {
+            setToastMessage({ text: data.message || "Failed to take ownership", type: "error" });
+        }
+    } catch (err) {
+        console.error("Error taking ownership:", err);
+        setToastMessage({ text: "Error assigning case", type: "error" });
+    }
   };
 
   const confirmDeleteCase = async () => {
@@ -293,6 +329,7 @@ export default function MyCases() {
                 <div className="flex-1">
                   <div className="flex items-center gap-4 mb-3">
                     <HexBadge label={c.status || "NEW"} color={statusColors[c.status] || "teal"} />
+                    <HexBadge label={c.isVerified ? "Verified" : "Not Verified"} color={c.isVerified ? "green" : "yellow"} />
                     <h3 className="text-xl font-bold text-white group-hover:text-teal-400 transition-colors" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
                       {c.title || "UNTITLED_RECORD"}
                     </h3>
@@ -321,6 +358,19 @@ export default function MyCases() {
                     <span>ACCESS RECORD</span>
                     <span className="group-hover:translate-x-1 transition-transform">→</span>
                   </div>
+                  {userRole === "police" && !c.assignedPolice && (
+                    <button
+                        onClick={(e) => handleTakeOwnership(e, c._id)}
+                        className="flex items-center gap-1 px-3 py-1 bg-teal-500/10 text-teal-400 border border-teal-500/30 hover:bg-teal-500/20 rounded text-xs transition-colors"
+                    >
+                        <span>🛡️ TAKE OWNERSHIP</span>
+                    </button>
+                  )}
+                  {userRole === "police" && c.assignedPolice && (
+                      <span className="text-xs text-slate-500 border border-slate-700 px-2 py-1 rounded">
+                          Assigned to {c.assignedPolice?.fullName || "Officer"}
+                      </span>
+                  )}
                   <button
                     onClick={(e) => handleDeleteClick(e, c._id)}
                     className="flex items-center gap-1 px-3 py-1 bg-red-500/10 text-red-500 border border-red-500/30 hover:bg-red-500/20 rounded text-xs transition-colors"

@@ -158,7 +158,13 @@ export default function CaseDetails() {
     const evidenceFileInputRef = useRef(null);
 
     const userRole = localStorage.getItem("role") || "user";
+    const [loggedInUserId, setLoggedInUserId] = useState(null);
     const [usersList, setUsersList] = useState([]);
+    
+    // Notes logic
+    const [notes, setNotes] = useState([]);
+    const [newNote, setNewNote] = useState("");
+    const [addingNote, setAddingNote] = useState(false);
     
     // Legacy single-evidence fields (removed verify/verificatioResult since we use EvidenceCard)
     const [evidenceList, setEvidenceList] = useState([]);
@@ -201,6 +207,18 @@ export default function CaseDetails() {
                     }
                 });
                 setCaseData(response.data.data);
+                if (response.data.data.notes) setNotes(response.data.data.notes);
+
+                // Fetch Profile for loggedInUserId
+                try {
+                    const profileRes = await axios.get(`${API_BASE_URL}/api/auth/profile`, {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+                    if (profileRes.data && profileRes.data._id) {
+                        setLoggedInUserId(profileRes.data._id);
+                    }
+                } catch(e) {}
+
                 fetchUsers(token);
                 fetchEvidence(token);
             } catch (err) {
@@ -279,7 +297,7 @@ export default function CaseDetails() {
         activityLog,
         createdAt,
         updatedAt,
-        assignedOfficer,
+        assignedPolice,
         assignedLawyer,
         createdBy
     } = caseData;
@@ -399,6 +417,69 @@ export default function CaseDetails() {
         }
     };
 
+    const handleTakeOwnership = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+            
+            await axios.patch(`${API_BASE_URL}/api/cases/${id}/assign-police`, {}, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            
+            setToastMessage({ text: "Ownership taken successfully.", type: "success" });
+            fetchCaseData();
+        } catch (err) {
+            console.error("Take ownership error:", err);
+            setToastMessage({ text: err.response?.data?.message || "Failed to take ownership.", type: "error" });
+        }
+    };
+
+    const handleVerifyCase = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+            
+            await axios.patch(`${API_BASE_URL}/api/cases/${id}/verify`, {}, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            
+            setToastMessage({ text: "Case successfully verified.", type: "success" });
+            fetchCaseData();
+        } catch (err) {
+            console.error("Verify case error:", err);
+            setToastMessage({ text: err.response?.data?.message || "Failed to verify case.", type: "error" });
+        }
+    };
+
+    const handleAddNote = async () => {
+        if (!newNote.trim()) return;
+        try {
+            setAddingNote(true);
+            const token = localStorage.getItem("token");
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+            
+            const response = await axios.post(`${API_BASE_URL}/api/cases/${id}/notes`, { text: newNote }, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            
+            setNotes(response.data.data);
+            setNewNote("");
+            setToastMessage({ text: "Note added successfully", type: "success" });
+        } catch (err) {
+            console.error("Add note error:", err);
+            setToastMessage({ text: err.response?.data?.message || "Failed to add note.", type: "error" });
+        } finally {
+            setAddingNote(false);
+        }
+    };
+
+    // Calculate Permissions
+    const isAssignedPolice = userRole === "police" && assignedPolice?._id === loggedInUserId;
+    const isOtherPolice = userRole === "police" && assignedPolice && assignedPolice._id !== loggedInUserId;
+    const canEditStatus = ["admin", "forensic"].includes(userRole) || isAssignedPolice;
+    const canUploadEvidence = ["admin", "forensic", "user"].includes(userRole) || isAssignedPolice;
+    const canSeeNotes = ["admin", "lawyer"].includes(userRole) || (userRole === "police" && assignedPolice);
+
     return (
         <div className="min-h-screen w-full bg-[#0a0f1a] text-slate-100 overflow-x-hidden relative" style={{ fontFamily: "system-ui, sans-serif" }}>
             <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
@@ -439,7 +520,7 @@ export default function CaseDetails() {
                                 <div className="relative group/status">
                                     <HexBadge label={status || "Pending"} color="teal" />
                                     
-                                    {["admin", "police", "forensic"].includes(userRole) && (
+                                    {canEditStatus && (
                                         <>
                                             <select 
                                                 value={status || "Pending"} 
@@ -463,6 +544,7 @@ export default function CaseDetails() {
                                         </>
                                     )}
                                 </div>
+                                <HexBadge label={caseData.isVerified ? "Verified" : "Not Verified"} color={caseData.isVerified ? "green" : "yellow"} />
                                 <span className="px-2 py-1 bg-white/5 border border-white/10 rounded text-xs font-mono text-slate-400">
                                     ID: {id}
                                 </span>
@@ -477,26 +559,33 @@ export default function CaseDetails() {
                             {/* Officer Alignment */}
                             <div className="flex flex-col md:items-end gap-1">
                                 <div className="text-[10px] text-slate-500 font-bold tracking-widest font-mono uppercase">ASSIGNED EXAMINER</div>
-                                {["admin", "police"].includes(userRole) ? (
-                                    <select 
-                                        value={assignedOfficer?._id || ""}
-                                        onChange={(e) => handleAssignUser("assignedOfficer", e.target.value)}
-                                        className="bg-black/60 border border-teal-500/40 text-teal-400 text-xs px-2 py-1 rounded font-mono w-full md:w-auto"
-                                    >
-                                        <option value="">-- UNASSIGNED --</option>
-                                        {usersList.filter(u => u.role === "police" || u.role === "forensic").map(u => (
-                                            <option key={u._id} value={u._id}>{u.fullName} [{u.role.toUpperCase()}]</option>
-                                        ))}
-                                    </select>
-                                ) : (
-                                    <div className="text-sm text-teal-300 font-mono">{assignedOfficer ? assignedOfficer.fullName : "UNASSIGNED"}</div>
+                                {userRole === "police" && !assignedPolice && (
+                                    <button onClick={handleTakeOwnership} className="px-3 py-1 border border-teal-500/50 bg-teal-500/10 text-teal-400 font-bold text-[10px] uppercase tracking-widest rounded hover:bg-teal-500/20 transition-colors">
+                                        🛡️ TAKE OWNERSHIP
+                                    </button>
+                                )}
+                                {assignedPolice ? (
+                                    <div className="text-sm text-teal-300 font-mono">{assignedPolice.fullName}</div>
+                                ) : userRole !== "police" ? (
+                                    <div className="text-sm text-slate-500 font-mono">UNASSIGNED</div>
+                                ) : null}
+
+                                {isAssignedPolice && !caseData.isVerified && (
+                                    <button onClick={handleVerifyCase} className="mt-2 px-3 py-1 border border-purple-500/50 bg-purple-500/10 text-purple-400 font-bold text-[10px] uppercase tracking-widest rounded hover:bg-purple-500/20 transition-colors">
+                                        ✅ VERIFY CASE
+                                    </button>
+                                )}
+                                {caseData.isVerified && (
+                                    <div className="mt-2 text-[10px] text-green-400 font-bold tracking-widest font-mono uppercase border border-green-500/30 bg-green-500/10 px-2 py-1 rounded inline-block">
+                                        ✅ Verified by Police
+                                    </div>
                                 )}
                             </div>
 
                             {/* Lawyer Alignment */}
                             <div className="flex flex-col md:items-end gap-1">
                                 <div className="text-[10px] text-slate-500 font-bold tracking-widest font-mono uppercase">LEGAL OVERSIGHT</div>
-                                {["admin", "police"].includes(userRole) ? (
+                                {["admin"].includes(userRole) ? (
                                     <select 
                                         value={assignedLawyer?._id || ""}
                                         onChange={(e) => handleAssignUser("assignedLawyer", e.target.value)}
@@ -579,10 +668,51 @@ export default function CaseDetails() {
                         {/* Incident Report */}
                         <div className="p-6 md:p-8 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md" style={{ animation: "fadeSlideUp 0.6s ease 0.4s both" }}>
                             <h2 className="text-xl font-bold text-white mb-4" style={{ fontFamily: "'Share Tech Mono', monospace" }}>Incident Report</h2>
+                            
+                            {isOtherPolice && (
+                                <div className="mb-4 p-4 rounded bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-bold tracking-widest uppercase">
+                                    ⚠️ THIS CASE IS ASSIGNED TO ANOTHER OFFICER. READ-ONLY ACCESS.
+                                </div>
+                            )}
+
                             <p className="text-slate-400 text-sm leading-relaxed whitespace-pre-wrap">
                                 {description}
                             </p>
                         </div>
+
+                        {/* INTERNAL NOTES (Police/Lawyer) */}
+                        {canSeeNotes && (
+                            <div className="p-6 md:p-8 rounded-2xl bg-black/40 border border-yellow-500/20 backdrop-blur-md" style={{ animation: "fadeSlideUp 0.6s ease 0.45s both" }}>
+                                <h2 className="text-xl font-bold text-yellow-400 mb-4 tracking-widest uppercase" style={{ fontFamily: "'Share Tech Mono', monospace" }}>Internal Notes</h2>
+                                <div className="space-y-4 mb-6">
+                                    {notes.length > 0 ? notes.map((note, i) => (
+                                        <div key={i} className="p-4 rounded-xl bg-yellow-500/5 border border-yellow-500/10">
+                                            <div className="text-[10px] text-yellow-500/70 uppercase tracking-widest font-mono mb-2 flex justify-between">
+                                                <span>{note.createdBy?.fullName || "Agent"} [{note.createdBy?.role || "System"}]</span>
+                                                <span>{new Date(note.timestamp).toLocaleString()}</span>
+                                            </div>
+                                            <div className="text-sm text-slate-300 font-mono whitespace-pre-wrap">{note.text}</div>
+                                        </div>
+                                    )) : (
+                                        <div className="text-xs text-slate-500 italic font-mono">No internal notes present.</div>
+                                    )}
+                                </div>
+                                {isAssignedPolice && (
+                                    <div className="flex gap-3">
+                                        <input 
+                                            type="text" 
+                                            value={newNote}
+                                            onChange={(e) => setNewNote(e.target.value)}
+                                            placeholder="Add internal investigation note..."
+                                            className="flex-1 bg-black/60 border border-yellow-500/30 rounded text-sm px-3 py-2 text-yellow-100 placeholder:text-yellow-500/30 focus:outline-none focus:border-yellow-500 font-mono"
+                                        />
+                                        <button onClick={handleAddNote} disabled={addingNote || !newNote.trim()} className="px-4 py-2 bg-yellow-500/10 text-yellow-500 border border-yellow-500/30 rounded text-xs font-bold uppercase hover:bg-yellow-500/20 disabled:opacity-50 transition-colors">
+                                            {addingNote ? "ADDING..." : "ADD NOTE"}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* EVIDENCE LOCKER SECTION */}
                         <div className="rounded-2xl border border-teal-500/20 bg-[#06101c]/80 backdrop-blur-xl overflow-hidden shadow-[0_0_40px_rgba(20,210,160,0.05)] relative" style={{ animation: "fadeSlideUp 0.6s ease 0.5s both" }}>
@@ -617,7 +747,7 @@ export default function CaseDetails() {
                                     ))}
 
                                     {/* Upload Trigger Area */}
-                                    {["admin", "police", "forensic", "user"].includes(userRole) && (
+                                    {canUploadEvidence && (
                                         <div className={`mt-8 pt-8 border-t border-teal-500/10 ${evidenceList.length === 0 ? 'text-center p-8 border-2 border-dashed border-teal-500/30 rounded-xl bg-teal-500/5 hover:bg-teal-500/10' : ''}`}>
                                             <input 
                                                 type="file" 
