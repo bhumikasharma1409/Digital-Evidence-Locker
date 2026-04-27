@@ -29,7 +29,7 @@ const registerUser = async (req, res) => {
             fullName,
             email,
             password,
-            role: req.body.role || 'user', // allow role strictly for initial setup/testing
+            role: 'user', // explicitly hardcoded to prevent injection
             state,
             district,
             locality,
@@ -63,11 +63,13 @@ const registerUser = async (req, res) => {
 
 const loginUser = async (req, res) => {
     try {
-        const { email, password } = req.body;
-
+        const { email, password, expectedRole } = req.body;
 
         const user = await User.findOne({ email }).select("+password");
         if (user && (await user.matchPassword(password))) {
+            if (expectedRole && user.role !== expectedRole) {
+                return res.status(403).json({ success: false, message: `Access Unauthorized: Account lacks ${expectedRole} privileges.` });
+            }
             res.json({
                 success: true,
                 _id: user._id,
@@ -146,10 +148,42 @@ const updateLocality = async (req, res) => {
     }
 };
 
+const createPolice = async (req, res) => {
+    try {
+        const { fullName, email, password, state, district, locality, pincode, policeStationArea } = req.body;
+        if (!fullName || !email || !password) return res.status(400).json({ success: false, message: "Provide required fields" });
+        
+        const exists = await User.findOne({ email });
+        if (exists) return res.status(400).json({ success: false, message: "User exists" });
+
+        const user = await User.create({ fullName, email, password, role: 'police', state, district, locality, pincode, policeStationArea });
+        res.status(201).json({ success: true, data: user });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+const createLawyer = async (req, res) => {
+    try {
+        const { fullName, email, password, state, district, locality, pincode } = req.body;
+        if (!fullName || !email || !password) return res.status(400).json({ success: false, message: "Provide required fields" });
+        
+        const exists = await User.findOne({ email });
+        if (exists) return res.status(400).json({ success: false, message: "User exists" });
+
+        const user = await User.create({ fullName, email, password, role: 'lawyer', state, district, locality, pincode });
+        res.status(201).json({ success: true, data: user });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
     getUserProfile,
     getAllUsers,
     updateLocality,
+    createPolice,
+    createLawyer
 };

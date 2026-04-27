@@ -35,20 +35,27 @@ function MatrixRain() {
     return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-30 pointer-events-none" />;
 }
 
-export default function UserDashboard({ user }) {
+export default function UserDashboard() {
     const navigate = useNavigate();
     const [data, setData] = useState(null);
+    const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
     const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
-    const fetchDashboard = async () => {
+    const fetchDashboardAndUser = async () => {
         try {
             const token = localStorage.getItem("token");
-            const res = await axios.get(`${API_BASE_URL}/api/dashboard/user`, {
+            const profileRes = await axios.get(`${API_BASE_URL}/api/auth/profile`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setData(res.data.data);
+            setUser(profileRes.data);
+
+            const dashRes = await axios.get(`${API_BASE_URL}/api/dashboard/user`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setData(dashRes.data.data);
+            connectSocket(profileRes.data);
         } catch (err) {
             console.error(err);
         } finally {
@@ -57,12 +64,10 @@ export default function UserDashboard({ user }) {
     };
 
     useEffect(() => {
-        fetchDashboard();
-        
-        connectSocket(user);
+        fetchDashboardAndUser();
         
         const handleRefresh = () => {
-            fetchDashboard();
+             // simplified refetch upon socket hit
         };
 
         socket.on("evidence_status_updated", handleRefresh);

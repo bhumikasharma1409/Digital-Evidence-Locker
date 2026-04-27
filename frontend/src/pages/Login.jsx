@@ -88,7 +88,8 @@ export default function Login() {
                 },
                 body: JSON.stringify({
                     email: formData.email,
-                    password: formData.password
+                    password: formData.password,
+                    expectedRole: "user"
                 }),
             });
 
@@ -100,8 +101,8 @@ export default function Login() {
                     localStorage.setItem("token", data.token);
                     if (data.role) localStorage.setItem("role", data.role);
                 }
-                // Redirect to dashboard page
-                navigate("/dashboard");
+                // Redirect to specialized user dashboard
+                navigate("/user-dashboard");
             } else {
                 setServerError(data.message || "Invalid email or password");
             }
