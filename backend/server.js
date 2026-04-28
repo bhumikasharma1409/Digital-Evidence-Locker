@@ -11,6 +11,8 @@ const caseRoutes = require("./routes/caseRoutes");
 const authRoutes = require("./routes/authRoutes");
 const evidenceRoutes = require("./routes/evidenceRoutes");
 const noteRoutes = require("./routes/noteRoutes");
+const dns = require("dns");
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 const http = require("http");
 const { Server } = require("socket.io");
