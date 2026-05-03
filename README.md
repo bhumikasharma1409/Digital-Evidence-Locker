@@ -252,6 +252,3 @@ git push origin feature/YourFeature
 
 
 
----
-
-<p align="center"> Made with ❤️ using MERN & Real-Time Systems </p>
