@@ -79,7 +79,7 @@ app.get("/", (req, res) => {
   res.json({ message: "Backend is working" });
 });
 
-// Routes
+
 app.use("/api/cases", caseRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/evidence", evidenceRoutes);
