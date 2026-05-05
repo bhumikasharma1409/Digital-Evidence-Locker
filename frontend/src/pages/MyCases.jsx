@@ -129,7 +129,22 @@ export default function MyCases() {
       c.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c._id?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterStatus === "ALL" || c.status === filterStatus;
+
+    let matchesFilter = false;
+    if (filterStatus === "ALL") {
+      matchesFilter = true;
+    } else if (filterStatus === "PENDING") {
+      matchesFilter = c.status === "PENDING";
+    } else if (filterStatus === "ASSIGNED") {
+      // Assigned means it has an assigned officer
+      matchesFilter = !!c.assignedPolice;
+    } else if (filterStatus === "VERIFIED") {
+      // Verified cases based on boolean or status
+      matchesFilter = !!c.isVerified || c.status === "VERIFIED";
+    } else if (filterStatus === "CLOSED") {
+      matchesFilter = c.status === "CLOSED";
+    }
+
     return matchesSearch && matchesFilter;
   });
 
@@ -389,7 +404,7 @@ export default function MyCases() {
           <div className="text-center py-20 rounded-2xl" style={{ border: "1px dashed rgba(20,210,160,0.2)", background: "rgba(0,0,0,0.2)", animation: "fadeSlideUp 0.8s ease 0.4s both" }}>
             <div className="text-4xl mb-4 opacity-50">📭</div>
             <h3 className="text-lg text-slate-300 font-bold mb-2 tracking-widest" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
-              {searchTerm ? "NO MATCHING CASES FOUND" : "NO RECORDS FOUND"}
+              {searchTerm || filterStatus !== "ALL" ? "NO MATCHING CASES FOUND" : "NO RECORDS FOUND"}
             </h3>
             <p className="text-sm text-slate-500" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
               {searchTerm ? "Try adjusting your search query" : "Directory query returned 0 objects"}
