@@ -127,6 +127,7 @@ export default function MyCases() {
   const filteredCases = cases.filter((c) => {
     const matchesSearch =
       c.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c._id?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === "ALL" || c.status === filterStatus;
     return matchesSearch && matchesFilter;
@@ -284,7 +285,7 @@ export default function MyCases() {
             </div>
             <input
               type="text"
-              placeholder="SEARCH DIRECTORY..."
+              placeholder="SEARCH_BY_TITLE_DESCRIPTION_OR_ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-12 pr-4 py-4 rounded-xl text-sm focus:outline-none transition-all placeholder:text-slate-600 focus:ring-1 focus:ring-teal-400/50"
@@ -387,8 +388,12 @@ export default function MyCases() {
         {filteredCases.length === 0 && (
           <div className="text-center py-20 rounded-2xl" style={{ border: "1px dashed rgba(20,210,160,0.2)", background: "rgba(0,0,0,0.2)", animation: "fadeSlideUp 0.8s ease 0.4s both" }}>
             <div className="text-4xl mb-4 opacity-50">📭</div>
-            <h3 className="text-lg text-slate-300 font-bold mb-2 tracking-widest" style={{ fontFamily: "'Share Tech Mono', monospace" }}>NO RECORDS FOUND</h3>
-            <p className="text-sm text-slate-500" style={{ fontFamily: "'Share Tech Mono', monospace" }}>Directory query returned 0 objects</p>
+            <h3 className="text-lg text-slate-300 font-bold mb-2 tracking-widest" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+              {searchTerm ? "NO MATCHING CASES FOUND" : "NO RECORDS FOUND"}
+            </h3>
+            <p className="text-sm text-slate-500" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+              {searchTerm ? "Try adjusting your search query" : "Directory query returned 0 objects"}
+            </p>
           </div>
         )}
       </div>

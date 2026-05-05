@@ -87,6 +87,7 @@ export default function Dashboard() {
     const [userRole, setUserRole] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [searchQuery, setSearchQuery] = useState("");
 
     const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
     const API_URL = `${API_BASE_URL}/api/cases`;
@@ -168,12 +169,21 @@ export default function Dashboard() {
     const closedCases = cases.filter(c => c.status === "CLOSED").length;
     const activeCases = totalCases - closedCases;
 
-    const recentCases = [...cases]
+    const filteredCases = cases.filter((c) => {
+        const query = searchQuery.toLowerCase();
+        return (
+            c.title?.toLowerCase().includes(query) ||
+            c.description?.toLowerCase().includes(query) ||
+            c._id?.toLowerCase().includes(query)
+        );
+    });
+
+    const recentCases = [...filteredCases]
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, 4);
     
-    const unclaimedCases = cases.filter(c => !c.assignedPolice);
-    const claimedCases = cases.filter(c => c.assignedPolice);
+    const unclaimedCases = filteredCases.filter(c => !c.assignedPolice);
+    const claimedCases = filteredCases.filter(c => c.assignedPolice);
 
     const statusColors = {
         PENDING: "yellow",
@@ -260,6 +270,23 @@ export default function Dashboard() {
                     </div>
                 )}
 
+                {/* Search Bar */}
+                <div className="mb-10 relative group" style={{ animation: "fadeSlideUp 0.8s ease 0.25s both" }}>
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14d2a0" strokeWidth="2" className="opacity-70 group-focus-within:opacity-100 transition-opacity">
+                            <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="SEARCH_BY_TITLE_DESCRIPTION_OR_ID..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-12 pr-4 py-4 rounded-xl text-sm focus:outline-none transition-all placeholder:text-slate-600 focus:ring-1 focus:ring-teal-400/50"
+                        style={{ background: "rgba(0,0,0,0.6)", border: "1px solid rgba(20,210,160,0.3)", color: "#14d2a0", fontFamily: "'Share Tech Mono', monospace" }}
+                    />
+                </div>
+
                 {/* Case Sections */}
                 {userRole === "police" ? (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10" style={{ animation: "fadeSlideUp 0.8s ease 0.3s both" }}>
@@ -288,7 +315,9 @@ export default function Dashboard() {
                                 )) : (
                                     <div className="py-8 text-center rounded-2xl border border-dashed border-white/10 opacity-50 flex flex-col items-center gap-3">
                                         <span className="text-xl">📭</span>
-                                        <span className="text-xs font-mono tracking-widest uppercase">No unclaimed cases</span>
+                                        <span className="text-xs font-mono tracking-widest uppercase">
+                                            {searchQuery ? "No matching cases found" : "No unclaimed cases"}
+                                        </span>
                                     </div>
                                 )}
                             </div>
@@ -319,7 +348,9 @@ export default function Dashboard() {
                                 )) : (
                                     <div className="py-8 text-center rounded-2xl border border-dashed border-white/10 opacity-50 flex flex-col items-center gap-3">
                                         <span className="text-xl">📭</span>
-                                        <span className="text-xs font-mono tracking-widest uppercase">No claimed cases</span>
+                                        <span className="text-xs font-mono tracking-widest uppercase">
+                                            {searchQuery ? "No matching cases found" : "No claimed cases"}
+                                        </span>
                                     </div>
                                 )}
                             </div>
@@ -360,7 +391,9 @@ export default function Dashboard() {
                             )) : (
                                 <div className="py-12 text-center rounded-2xl border border-dashed border-white/10 opacity-50 flex flex-col items-center gap-3">
                                     <span className="text-2xl">📭</span>
-                                    <span className="text-xs font-mono tracking-widest uppercase">No cases detected in repository</span>
+                                    <span className="text-xs font-mono tracking-widest uppercase">
+                                        {searchQuery ? "No matching cases found" : "No cases detected in repository"}
+                                    </span>
                                 </div>
                             )}
                         </div>
