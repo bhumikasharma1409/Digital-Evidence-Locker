@@ -36,7 +36,12 @@ app.use(session({
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
+    if (
+      !origin || 
+      origin.startsWith("http://localhost:") || 
+      origin.startsWith("http://127.0.0.1:") ||
+      origin === "https://digital-evidence-locker.vercel.app"
+    ) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
